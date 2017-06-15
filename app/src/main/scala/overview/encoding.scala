@@ -39,7 +39,9 @@ class encoding extends App {
         }
       }
       object Fact extends CFact
-      trait CTmVis extends TmVis with CFact { def visitTm = _.accept(this) }
+      trait CTmVis extends TmVis with CFact {
+        def visitTm = _.accept(this)
+      }
       trait CTm {
         def fromLit: Option[Int] = None
         def fromAdd: Option[(CTm, CTm)] = None
@@ -95,4 +97,5 @@ class encoding extends App {
   import ExtTmVis.Fact._
   val e = Add(Lit(1),Tru())
 }
+
 

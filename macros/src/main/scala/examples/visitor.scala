@@ -34,7 +34,7 @@ class visitor extends scala.annotation.StaticAnnotation {
     defn match {
         // assumption Some(stats): old methods should be explicitly overidden and hence the body is non-empty
       case Defn.Trait(_, tname @ Type.Name(name), _, _, Template(Nil,parents,_,Some(stats))) =>
-        val in_tpes = stats.collect { case t@q"type $_" => t }
+        val in_tpes = stats.collect { case t@q"..$_ type $_" => t }
         val tnames = in_tpes map { case q"..$_ type $name" => name.value}
         val out_tpes = tnames.map { x => q"type ${Type.Name("O"+x)}" }
         val ctrs = stats.collect(decl2ctr(tnames))
@@ -73,8 +73,7 @@ class visitor extends scala.annotation.StaticAnnotation {
         if (DEBUG) println(out.syntax)
         out
       case _ =>
-        println(defn.structure)
-        abort("@Visitor must annotate an trait.")
+        abort("@Visitor annotate an invalid definition:\n" + defn.syntax + "\n" + defn.structure)
     }
   }
 }
