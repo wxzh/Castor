@@ -4,10 +4,52 @@ import scala.meta._
 
 import scala.collection.immutable.Seq
 
+/**
+  * Naming Convention
+  * ---
+  * trait Term {
+  *   trait Tm
+  * }
+  * ~>
+  * trait Term {
+  *   type TmV <: TmVisitor
+  *   abstract class Tm {
+  *     def accept(v: TmVisitor): v.OTm
+  *   }
+  *   trait TmVisitor {_: TmV =>
+  *     type OTm
+  *     def apply(x: Tm): OTm = x.accept(this)
+  *   }
+  * }
+  *
+  * trait Nat extends Term {
+  *   trait Tm extends super.Tm {
+  *     def TmZero: Tm
+  *     def TmSucc: Tm => Tm
+  *   }
+  *
+  *   case object TmZero extends Tm
+  *   case class TmSucc(x: Tm) extends Tm
+  *   trait TmVisitor extends ... {
+  *     def tmZero: Tm => T
+  *   }
+  * }
+  *
+ */
+class adt extends scala.annotation.StaticAnnotation
+
 class visitor extends scala.annotation.StaticAnnotation {
   inline def apply(defn: Any): Any = meta {
-    val DEBUG = true
+    val DEBUG = false
     if (DEBUG) println(defn.structure)
+
+    def decl2ctr(name: String): PartialFunction[Stat, Ctr] = {
+      case Decl.Def(_, Term.Name(name), Nil, Nil, tpe) =>
+        tpe match {
+          case Type.Function(ts, t: Type.Name) => Ctr(name, ts.map(toType(_)), t)
+          case t: Type.Name => Ctr(name, Seq(), t)
+        }
+    }
 
     def toType(arg: Type.Arg): Type = arg match {
       case Type.Arg.Repeated(tpe) => tpe
@@ -15,117 +57,95 @@ class visitor extends scala.annotation.StaticAnnotation {
       case tpe: Type => tpe
     }
 
-    def decl2ctr(tnames: Seq[String]): PartialFunction[Stat, Ctr] = {
-      case Decl.Def(mod,Term.Name(name),Nil,Nil,tpe) =>
-        val old = mod match {
-          case Nil => false
-          case Seq(Mod.Override()) => true
+    def gen(t: Defn.Trait) = t.templ.stats match {
+      case Some(stats) =>
+        val newT = t.copy(
+          templ = t.templ.copy(
+            stats = t.templ.stats.map(stats => stats.flatMap(genImpl(_))))
+          )
+        println(newT)
+        q"$newT"
+        case None => abort("..")
+      }
+
+    def genImpl(defn: Stat) = defn match {
+      case Defn.Trait(List(mod"@adt"), tname@Type.Name(name), _, _, Template(Nil, parents, _, body)) =>
+        val visTrait = Type.Name(name + "Visitor")
+        val defaultTrait = Type.Name(name + "Default")
+        val visType = Type.Name(name + "V")
+        val outType = Type.Name("O" + name)
+        val adtType = Type.Name(name)
+        val typeDecl = q"type $visType <: $visTrait"
+        val visParent = Ctor.Ref.Name(name + "Visitor")
+
+        (parents, body) match {
+          case (Nil, None) =>
+            // data type declaration
+            val adtDecl = q"abstract class $adtType { def accept(v: $visType): ${Type.Select(Term.Name("v"), outType)}}"
+            val visitorDecl =
+              q"""trait $visTrait {_: $visType =>
+                            type ${Type.Name("O" + name)}
+                            def apply(x: $adtType): $outType = x.accept(this)
+                          }
+                       """
+            val otherwise = q"def otherwise: ${Type.Function(Seq(adtType),outType)}"
+            val template = Template(Nil, Seq(Term.Apply(visParent, Nil)), Term.Param(Nil, Name.Anonymous(), Some(visType), None), Some(Seq(otherwise)))
+            val defaultDecl = q"trait $defaultTrait extends $template"
+            Seq(typeDecl, adtDecl, visitorDecl, defaultDecl)
+
+          case (parents, Some(stats)) =>
+            // concrete cases
+            val parents2 = parents.collect {
+              case Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name)), u) =>
+                Term.Apply(Ctor.Ref.Select(t, visParent), u)
+            }
+            val ctrs = stats.map(decl2ctr(name)(_))
+            val template = Template(Nil, parents2, Term.Param(Nil, Name.Anonymous(), Some(visType), None), Some(ctrs.map(_.genVisit)))
+            val visitorDecl = q"trait $visTrait extends $template"
+            val caseDecls = ctrs.map(_.genCase)
+            val parents3 = parents.collect {
+              case Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name)), u) =>
+                Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name+"Default")), u)
+            }
+            val template3 = Template(Nil, Term.Apply(visParent, Nil) +: parents3, Term.Param(Nil, Name.Anonymous(), Some(visType), None), Some(ctrs.map(_.genOtherwise)))
+            val defaultDecl = q"trait $defaultTrait extends $template3"
+            Seq(typeDecl, visitorDecl, defaultDecl) ++ caseDecls
+          case (_, _) => Seq()
         }
-        tpe match {
-          case Type.Function(ts,t: Type.Name) => Ctr(name, ts.map(toType(_)), t, old)
-          case t: Type.Name => Ctr(name, Seq(), t, old)
-        }
+      case stat => Seq(stat)
     }
 
-
-    // TODO: generate toString() and equals() in AST hierarchy
-    // TODO: @Obj automatically instantiate
-
     defn match {
-        // assumption Some(stats): old methods should be explicitly overidden and hence the body is non-empty
-      case Defn.Trait(_, tname @ Type.Name(name), _, _, Template(Nil,parents,_,Some(stats))) =>
-        val in_tpes = stats.collect { case t@q"..$_ type $_" => t }
-        val tnames = in_tpes map { case q"..$_ type $name" => name.value}
-        val out_tpes = tnames.map { x => q"type ${Type.Name("O"+x)}" }
-        val ctrs = stats.collect(decl2ctr(tnames))
-        val (old_ctrs, new_ctrs) = ctrs.partition(_.old)
-        val visit_decls = tnames.map{x =>
-          q"def ${Term.Name("visit"+x)}: (..${Seq(Type.Name(x))}) => ${Type.Name("O"+x)}"
-        }
-
-        val super_facts =
-          parents.map{case q"${name: Ctor.Name}()" => ctor"${Ctor.Ref.Name(name+".Fact")}"}
-        val fact =
-          q"trait ${Type.Name("Fact")} extends ..${super_facts} { ..${ in_tpes ++ new_ctrs.map{_.genLike} ++ new_ctrs.map{_.genField}} }"
-        val fact_ref = ctor"${Ctor.Ref.Name(name+".Fact")}"
-        val fact_ctor = ctor"${Ctor.Ref.Name("Fact")}"
-
-        val tpe_refts = tnames.map{x => Defn.Type(Nil,Type.Name(x),Nil,Type.Name("C"+x))}
-        val a_visitor = t"$tname {..$tpe_refts}"
-        val a_visitor_ctor = ctor"${Ctor.Ref.Name(name)}"
-        val c_visitor = q"trait ${Type.Name("C"+name)} extends ..${Seq(a_visitor_ctor, Ctor.Ref.Name("CFact"))} { ..${tnames.map{ x =>
-          q"def ${Term.Name("visit"+x)} = _.accept(this)"
-        }}}"
-        val cfact = q"trait ${Type.Name("CFact")} extends ..${Seq(fact_ctor)} { ..${tpe_refts ++ ctrs.map(_.genObject(a_visitor))}}"
-        val fact_obj = q"object Fact extends CFact"
-
-        val asts = tnames.map { x =>
-          val accept = q"def accept(v: $a_visitor): ${Type.Select(Term.Name("v"),Type.Name("O"+x))}"
-          q"trait ${Type.Name("C"+x)} { ..${tpe_refts ++ ctrs.map(_.genFromDecl) :+ accept}}"
-        }
-
-        val template = template"..${parents :+ fact_ref} {..${out_tpes ++ new_ctrs.map{_.genVisit} ++ visit_decls}}"
-        val vis = q"trait $tname extends $template"
-        val companion =
-          q"object ${Term.Name(name)} { ..${Seq(fact, cfact, fact_obj, c_visitor) ++ asts } }"
-
-        val out = Term.Block(Seq(vis, companion))
-        if (DEBUG) println(out.syntax)
-        out
-      case _ =>
-        abort("@Visitor annotate an invalid definition:\n" + defn.syntax + "\n" + defn.structure)
+      case t: Defn.Trait => gen(t)
+      case Term.Block(Seq(t: Defn.Trait, o: Defn.Object)) => Term.Block(Seq(gen(t),o))
+      case _ => abort("Not a trait")
     }
   }
 }
 
-case class Ctr(lowername: String, ts: Seq[Type], t: Type.Name, old: Boolean) {
-  val name = lowername.capitalize
+case class Ctr(name: String, ts: Seq[Type], t: Type.Name) {
   val ot = Type.Name("O" + t.value)
   val xs = for (i <- 1 to ts.length) yield Term.Name("x"+i)
   val params = Seq((xs,ts).zipped.map { (x,t) => param"$x: $t" })
-//  val cts = ts.map{x => x match {
-//    case Type.Name(n) if n == t.value => Type.Name("C"+n)
-//    case _ => x
-//  }}
-  val from_type = ts.length match {
-    case 0 => t"Boolean"
-    case 1 => t"Option[..$ts]"
-    case _ => t"Option[(..$ts)]"
-  }
-  val (from_default, from_override) =
-    if (ts.isEmpty) (q"false", q"true")
-    else (q"None", q"Some(..$xs)")
-
-  def genLike = {
-    val template = template"{..${Seq(genApply,genUnapply)}}"
-    q"trait ${Type.Name(name + "Like")} extends $template"
-  }
-  def genApply =
-    q"def apply(...$params): $t"
-
-  def genUnapply =
-    q"def unapply(x: $t): $from_type"
-
-  def genField =
-    q"val ${Pat.Var.Term(Term.Name(name))}: ${Type.Name(name+"Like")}"
-
+  val visitMethod = Term.Name(name(0).toLower + name.substring(1))
   def genVisit =
-    q"def ${Term.Name(lowername)}: ${if (ts.isEmpty) ot else Type.Function(ts,ot)}"
+    q"def $visitMethod: ${if (ts.isEmpty) ot else Type.Function(ts,ot)}"
 
-  def genObject(vis: Type) = {
-    val ctor = ctor"${Ctor.Name(name+"Like")}"
+  def genCase = {
     val accept = {
-      val v = Term.Name("v")
-      val selectCtr = Term.Select(v, Term.Name(lowername))
-      q"def accept(v: $vis): ${Type.Select(v, ot)} = ${ if (ts.isEmpty) selectCtr else Term.Apply(selectCtr, xs)}"
+      val selectCtr = Term.Select(Term.Name("v"), visitMethod)
+      q"def accept(v: ${Type.Name(t.value + "V")}): ${Type.Select(Term.Name("v"), ot)} = ${ if (ts.isEmpty) selectCtr else Term.Apply(selectCtr, xs)}"
     }
-    val cst = template"..${Seq(Ctor.Name("C"+t.value))} { ..${Seq(accept,genFromDef)}}"
-    val apply = q"def apply(...$params) = new $cst"
-    val unapply = q"def unapply(x: $t) = ${Term.Select(Term.Name("x"), Term.Name("from"+name))}"
-    val template = template"$ctor {..${Seq(apply,unapply)}}"
-    q"object ${Term.Name(name)} extends $template"
+    if (ts.isEmpty) q"case object ${Term.Name(name)} extends ${Ctor.Ref.Name(t.value)} {..${Seq(accept)}}"
+    else q"case class ${Type.Name(name)} (...$params) extends ${Ctor.Ref.Name(t.value)} {..${Seq(accept)}}"
   }
-  def genFromDecl = q"def ${Term.Name("from"+name)}: $from_type = $from_default"
-  def genFromDef = q"override def ${Term.Name("from"+name)} = $from_override"
+
+  // reconstructing the object
+  def genOtherwise = {
+    val body =
+      if (xs.isEmpty) Term.Apply(Term.Name("otherwise"), Seq(Term.Name(name)))
+      else Term.Function(xs.map{x => param"$x"}, Term.Apply(Term.Name("otherwise"), Seq(Term.Apply(Term.Name(name), xs))))
+    q"def $visitMethod = $body"
+  }
 }
 

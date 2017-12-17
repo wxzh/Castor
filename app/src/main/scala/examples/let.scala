@@ -1,6 +1,6 @@
 package examples
 
-@visitor
+/*
 trait let_TmVis extends varapp_TmVis {
   type Tm
   def tmLet: (String, Tm, Tm) => Tm
@@ -23,3 +23,4 @@ trait let_Typeof extends varapp_TmVis {
   }
 
 }
+*/

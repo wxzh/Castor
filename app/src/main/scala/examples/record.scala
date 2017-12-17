@@ -2,6 +2,7 @@ package examples
 
 import utils._
 
+/*
   @visitor trait record_TmVis {
     type Tm
     def tmRecord: List[(String,Tm)] => Tm
@@ -112,3 +113,4 @@ import utils._
       else if (subtype(ty2,ty1)) ty2
       else visitTy(ty1)(ty2)
   }
+*/
