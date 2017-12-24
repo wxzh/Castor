@@ -2,13 +2,13 @@ package examples
 
 import utils._
 
-@visitor trait Bool extends Term {
+@vicase trait Bool extends Term {
   @adt trait Tm extends super.Tm {
     def TmTrue: Tm
     def TmFalse: Tm
     def TmIf: (Tm,Tm,Tm) => Tm
   }
-  trait Eval1 extends TmDefault with super.Eval1 {_: TmV =>
+  @visitor trait Eval1 extends TmDefault with super.Eval1 {_: TmV =>
     override def tmIf = {
       case (TmTrue,t2,_) => t2
       case (TmFalse,_,t3) => t3

@@ -4,21 +4,21 @@ import utils._
 
 object NoRuleApplies extends Exception
 
-@visitor trait Term {
+@vicase trait Term {
   @adt trait Tm
-  trait Eval1 extends TmDefault {_: TmV =>
+  @visitor trait Eval1 extends TmDefault {_: TmV =>
     type OTm = Tm
     def otherwise = _ => throw NoRuleApplies
   }
 }
 
-@visitor trait Nat extends Term {
+@vicase trait Nat extends Term {
   @adt trait Tm extends super.Tm {
     def TmZero: Tm
     def TmSucc: Tm => Tm
     def TmPred: Tm => Tm
   }
-  trait Eval1 extends TmDefault with super.Eval1 {_: TmV =>
+  @visitor trait Eval1 extends TmDefault with super.Eval1 {_: TmV =>
     override def tmSucc = t => TmSucc(this(t))
     override def tmPred = {
       case TmZero => TmZero

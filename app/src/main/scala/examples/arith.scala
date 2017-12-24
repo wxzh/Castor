@@ -1,10 +1,10 @@
 package examples
 
-@visitor trait Arith extends Nat with Bool {
+@vicase trait Arith extends Nat with Bool {
   @adt trait Tm extends super[Nat].Tm with super[Bool].Tm {
     def TmIsZero: Tm => Tm
   }
-  trait Eval1 extends TmVisitor with super[Nat].Eval1 with super[Bool].Eval1 {_: TmV =>
+  @visitor trait Eval1 extends TmVisitor with super[Nat].Eval1 with super[Bool].Eval1 {_: TmV =>
     def tmIsZero = {
       case TmZero => TmTrue
       case TmSucc(t) if nv(t) => TmFalse
