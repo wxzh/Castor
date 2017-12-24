@@ -8,7 +8,7 @@ import utils._
     def TmFalse: Tm
     def TmIf: (Tm,Tm,Tm) => Tm
   }
-  @visit(Tm) trait Eval1 extends TmDefault with super.Eval1 {
+  @default(Tm) trait Eval1 extends super.Eval1 {
     override def tmIf = {
       case (TmTrue,t2,_) => t2
       case (TmFalse,_,t3) => t3

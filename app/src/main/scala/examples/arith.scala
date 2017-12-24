@@ -13,9 +13,9 @@ package examples
   }
 }
 
-object Test extends Arith {
-  type TmV = TmVisitor
-  object eval1 extends Eval1
+
+object Test {
+  import Arith._
   val term = TmIsZero(TmIf(TmFalse,TmTrue,TmPred(TmZero)))
   def main(args: Array[String]): Unit = {
     println(eval1(term))

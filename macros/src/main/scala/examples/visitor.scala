@@ -40,6 +40,7 @@ import scala.collection.immutable.Seq
  */
 class adt extends scala.annotation.StaticAnnotation
 class visit[T](t: T) extends scala.annotation.StaticAnnotation
+class default[T](t: T) extends scala.annotation.StaticAnnotation
 
 class vicase extends scala.annotation.StaticAnnotation {
   inline def apply(defn: Any): Any = meta {
@@ -69,16 +70,24 @@ class vicase extends scala.annotation.StaticAnnotation {
           templ = t.templ.copy(
             stats = t.templ.stats.map(stats => stats.flatMap(genImpl(_))))
           )
-        //TODO: generate objects for traits that annotated as @visitor
-        val companion = q"object ${Term.Name(t.name.value)} extends ${Template(Nil,Seq(Term.Apply(Ctor.Ref.Name(t.name.value), Nil)),Term.Param(Nil, Name.Anonymous(), None, None), None)}"
+        val binds = stats.collect {
+          case Defn.Trait(List(mod"@adt"), Type.Name(name), _, _, _) =>
+            q"type ${Type.Name(name + "V")} = ${Type.Name(name + "Visit")}"
+        }
+        val objs = stats.collect {
+          case Defn.Trait(Seq(Mod.Annot(Term.Apply(Ctor.Ref.Name(visitType), _))), Type.Name(name), _, _, _) =>
+            q"object ${Term.Name(uncapitalize(name))} extends ${Template(Nil,Seq(Term.Apply(Ctor.Ref.Name(name), Nil)),Term.Param(Nil, Name.Anonymous(), None, None), None)}"
+        }
+        val companion = q"object ${Term.Name(t.name.value)} extends ${Template(Nil,Seq(Term.Apply(Ctor.Ref.Name(t.name.value), Nil)),Term.Param(Nil, Name.Anonymous(), None, None), Some(binds ++ objs))}"
         println((newT,companion))
         Term.Block(Seq(newT, companion))
       case None => abort("Empty top-level trait")
     }
 
+
     def genImpl(defn: Stat) = defn match {
       case Defn.Trait(List(mod"@adt"), tname@Type.Name(name), tparams, _, Template(Nil, parents, _, body)) =>
-        val visTrait = Type.Name(name + "Visitor")
+        val visTrait = Type.Name(name + "Visit")
         val defaultTrait = Type.Name(name + "Default")
         val visType = Type.Name(name + "V")
         val outType = Type.Name("O" + name)
@@ -87,7 +96,7 @@ class vicase extends scala.annotation.StaticAnnotation {
         val adtType = Type.Name(name)
         val adtTypeApp = if (tvars.isEmpty) adtType else Type.Apply(adtType, tvars)
         val typeDecl = q"type $visType <: $visTrait"
-        val visParent = Ctor.Ref.Name(name + "Visitor")
+        val visParent = Ctor.Ref.Name(name + "Visit")
 
         val ctrs = body.map(stats => stats.map(decl2ctr(name, tparams)(_))).getOrElse(Nil)
         val adtDecl =
@@ -119,15 +128,15 @@ class vicase extends scala.annotation.StaticAnnotation {
         val defaultDecl = q"trait $defaultTrait extends $template3"
         (if (parents.isEmpty) Seq(adtDecl) else Seq()) ++ Seq(typeDecl, visitorDecl, defaultDecl) ++ caseDecls
 
-      case trt@Defn.Trait(Seq(Mod.Annot(Term.Apply(Ctor.Ref.Name("visit"), Seq(Term.Name(adtName))))), tname@Type.Name(name), _, _, Template(_, parents, _, body)) =>
-        Seq(trt.copy(
+      case trt@Defn.Trait(Seq(Mod.Annot(Term.Apply(Ctor.Ref.Name(visitType), Seq(Term.Name(adtName))))), tname@Type.Name(name), _, _, Template(_, parents, _, body)) =>
+        val newTrt = trt.copy(
           mods = Seq(),
           templ = trt.templ.copy(
-            parents = Ctor.Ref.Name(adtName + "Visitor") +: trt.templ.parents,
+            parents = Ctor.Ref.Name(adtName + visitType.capitalize) +: trt.templ.parents,
             self = Term.Param(Nil, Name.Anonymous(), Some(Type.Name(adtName + "V")), None)
           )
-        ))
-//        Seq(trt)//, q"val ${Pat.Var.Term(Term.Name(uncapitalize(name)))}: $tname")
+        )
+        if (parents.isEmpty) Seq(newTrt, q"val ${Pat.Var.Term(Term.Name(uncapitalize(name)))}: $tname") else Seq(newTrt)
 
       case stat => Seq(stat)
     }
