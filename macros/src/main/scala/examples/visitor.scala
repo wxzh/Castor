@@ -163,14 +163,14 @@ case class Ctr(adtName: String, ctrName: String, tparams: Seq[String], ts: Seq[T
     }
     // TODO generic extends generic trait
     val adt = if (tparams.isEmpty) Ctor.Ref.Name(adtName) else Term.Apply(Term.ApplyType(Ctor.Ref.Name(adtName), t.asInstanceOf[Type.Apply].args), Nil)
-    if (ts.isEmpty) q"case object ${Term.Name(ctrName)} extends $adt {..${Seq(accept)}}"
+    if (ts.isEmpty && usedTvars.isEmpty) q"case object ${Term.Name(ctrName)} extends $adt {..${Seq(accept)}}"
     else q"""case class ${Type.Name(ctrName)}[..$usedTvars] (...$params) extends $adt {..${Seq(accept)}}"""
   }
 
   // reconstructing the object
   def genOtherwise = {
     val body =
-      if (xs.isEmpty) Term.Apply(Term.Name("otherwise"), Seq(Term.Name(ctrName)))
+      if (xs.isEmpty) Term.Apply(Term.Name("otherwise"), if (usedTvars.isEmpty) Seq(Term.Name(ctrName)) else Seq(Term.Apply(Term.Name(ctrName), Seq())))
       else Term.Function(xs.map{x => param"$x"}, Term.Apply(Term.Name("otherwise"), Seq(Term.Apply(Term.Name(ctrName), xs))))
     q"def $visitMethod[..$usedTvars] = $body"
   }

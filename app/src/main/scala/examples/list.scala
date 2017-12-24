@@ -1,12 +1,12 @@
 package examples
 
 // parametric ADT
-//@vicase trait List {
-//  @adt trait List[T] {
-//    def Nil: List[T]
-//    def Cons: (T, List[T]) => List[T]
-//  }
-//}
+@vicase trait List {
+  @adt trait List[T] {
+    def Nil: List[T]
+    def Cons: (T, List[T]) => List[T]
+  }
+}
 
 // GADT
 @vicase trait TypedArith {
