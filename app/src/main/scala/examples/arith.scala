@@ -4,7 +4,7 @@ package examples
   @adt trait Tm extends super[Nat].Tm with super[Bool].Tm {
     def TmIsZero: Tm => Tm
   }
-  @visitor trait Eval1 extends TmVisitor with super[Nat].Eval1 with super[Bool].Eval1 {_: TmV =>
+  @visit(Tm) trait Eval1 extends super[Nat].Eval1 with super[Bool].Eval1 {
     def tmIsZero = {
       case TmZero => TmTrue
       case TmSucc(t) if nv(t) => TmFalse

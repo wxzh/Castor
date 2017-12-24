@@ -20,15 +20,14 @@ package examples
     def TmIsZero: Tm[Int] => Tm[Boolean]
   }
 
-  trait Eval extends TmVisitor { _: TmV =>
+  @visit(Tm) trait Eval {
     type OTm[T] = T
     def tmZero = 0
     def tmSucc = this(_) + 1
     def tmPred = this(_) - 1
     def tmTrue = true
     def tmFalse = false
-    def tmIf[_] = (e1,e2,e3) =>
-      if (this(e1)) this(e2) else this(e3)
+    def tmIf[_] = (t1,t2,t3) => if (this(t1)) this(t2) else this(t3)
     def tmIsZero = this(_) == 0
   }
 }

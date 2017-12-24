@@ -6,7 +6,7 @@ object NoRuleApplies extends Exception
 
 @vicase trait Term {
   @adt trait Tm
-  @visitor trait Eval1 extends TmDefault {_: TmV =>
+  @visit(Tm) trait Eval1 extends TmDefault {
     type OTm = Tm
     def otherwise = _ => throw NoRuleApplies
   }
@@ -18,7 +18,7 @@ object NoRuleApplies extends Exception
     def TmSucc: Tm => Tm
     def TmPred: Tm => Tm
   }
-  @visitor trait Eval1 extends TmDefault with super.Eval1 {_: TmV =>
+  @visit(Tm) trait Eval1 extends TmDefault with super.Eval1 {
     override def tmSucc = t => TmSucc(this(t))
     override def tmPred = {
       case TmZero => TmZero

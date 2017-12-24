@@ -4,13 +4,8 @@ import scala.meta._
 
 import scala.collection.immutable.Seq
 
-/** TODO: support GADT, e.g.
-  * trait List[T] {
-  *   def Nil: List[T]
-  *   def Cons: (T, List[T]) => List[T]
-  * }
-  */
-
+// TODO: genenerate self annotation for visitors
+// find all parents if one implements Default/Visitor directly, trips the suffix
 /**
   * Naming Convention
   * ---
@@ -44,7 +39,7 @@ import scala.collection.immutable.Seq
   *
  */
 class adt extends scala.annotation.StaticAnnotation
-class visitor extends scala.annotation.StaticAnnotation
+class visit[T](t: T) extends scala.annotation.StaticAnnotation
 
 class vicase extends scala.annotation.StaticAnnotation {
   inline def apply(defn: Any): Any = meta {
@@ -87,9 +82,10 @@ class vicase extends scala.annotation.StaticAnnotation {
         val defaultTrait = Type.Name(name + "Default")
         val visType = Type.Name(name + "V")
         val outType = Type.Name("O" + name)
-        val outTypeApp = Type.Apply(outType, tparams.map{p=>Type.Name(p.name.value)})
+        val tvars = tparams.map{p=>Type.Name(p.name.value)}
+        val outTypeApp = if (tvars.isEmpty) outType else Type.Apply(outType, tvars)
         val adtType = Type.Name(name)
-        val adtTypeApp = Type.Apply(adtType, tparams.map{p=>Type.Name(p.name.value)})
+        val adtTypeApp = if (tvars.isEmpty) adtType else Type.Apply(adtType, tvars)
         val typeDecl = q"type $visType <: $visTrait"
         val visParent = Ctor.Ref.Name(name + "Visitor")
 
@@ -123,8 +119,15 @@ class vicase extends scala.annotation.StaticAnnotation {
         val defaultDecl = q"trait $defaultTrait extends $template3"
         (if (parents.isEmpty) Seq(adtDecl) else Seq()) ++ Seq(typeDecl, visitorDecl, defaultDecl) ++ caseDecls
 
-      case trt@Defn.Trait(List(mod"@visitor"), tname@Type.Name(name), _, _, _) =>
-        Seq(trt)//, q"val ${Pat.Var.Term(Term.Name(uncapitalize(name)))}: $tname")
+      case trt@Defn.Trait(Seq(Mod.Annot(Term.Apply(Ctor.Ref.Name("visit"), Seq(Term.Name(adtName))))), tname@Type.Name(name), _, _, Template(_, parents, _, body)) =>
+        Seq(trt.copy(
+          mods = Seq(),
+          templ = trt.templ.copy(
+            parents = Ctor.Ref.Name(adtName + "Visitor") +: trt.templ.parents,
+            self = Term.Param(Nil, Name.Anonymous(), Some(Type.Name(adtName + "V")), None)
+          )
+        ))
+//        Seq(trt)//, q"val ${Pat.Var.Term(Term.Name(uncapitalize(name)))}: $tname")
 
       case stat => Seq(stat)
     }
