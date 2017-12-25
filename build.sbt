@@ -2,6 +2,9 @@
 // At the time of writing, that's 2.11.11 and 2.12.2.
 scalaVersion in ThisBuild := "2.12.2"
 
+lazy val localScalacOpts = Seq(
+  "-feature",
+  "-deprecation")
 
 lazy val metaMacroSettings: Seq[Def.Setting[_]] = Seq(
   // New-style macro annotations are under active development.  As a result, in
@@ -15,7 +18,7 @@ lazy val metaMacroSettings: Seq[Def.Setting[_]] = Seq(
   addCompilerPlugin("org.scalameta" % "paradise" % "3.0.0-M9" cross CrossVersion.full),
   scalacOptions += "-Xplugin-require:macroparadise",
   // temporary workaround for https://github.com/scalameta/paradise/issues/10
-  scalacOptions in (Compile, console) := Seq() // macroparadise plugin doesn't work in repl yet.
+  scalacOptions in (Compile, console) := localScalacOpts // macroparadise plugin doesn't work in repl yet.
 )
 
 // Define macros in this project.
@@ -28,7 +31,10 @@ lazy val macros = project.settings(
 )
 
 // Use macros in this project.
-lazy val app = project.settings(metaMacroSettings
-  libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
+lazy val app = project.settings(metaMacroSettings).dependsOn(macros)
+
+lazy val tapl = project.settings(
+  metaMacroSettings,
+  libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.4" % "test",
   libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6"
 ).dependsOn(macros)

@@ -4,35 +4,33 @@ import scala.meta._
 
 import scala.collection.immutable.Seq
 
-// TODO: genenerate self annotation for visitors
-// find all parents if one implements Default/Visitor directly, trips the suffix
 /**
   * Naming Convention
   * ---
   * trait Term {
-  *   trait Tm
+  *   @adt trait Tm
   * }
   * ~>
   * trait Term {
-  *   type TmV <: TmVisitor
+  *   type TmV <: TmVisit
   *   abstract class Tm {
-  *     def accept(v: TmVisitor): v.OTm
+  *     def accept(v: TmVisit): v.OTm
   *   }
-  *   trait TmVisitor {_: TmV =>
+  *   trait TmVisit {_: TmV =>
   *     type OTm
   *     def apply(x: Tm): OTm = x.accept(this)
   *   }
   * }
   *
   * trait Nat extends Term {
-  *   trait Tm extends super.Tm {
+  *   @adt trait Tm extends super.Tm {
   *     def TmZero: Tm
   *     def TmSucc: Tm => Tm
   *   }
   *
   *   case object TmZero extends Tm
   *   case class TmSucc(x: Tm) extends Tm
-  *   trait TmVisitor extends ... {
+  *   trait TmVisit extends ... {
   *     def tmZero: Tm => T
   *   }
   * }
@@ -41,10 +39,13 @@ import scala.collection.immutable.Seq
 class adt extends scala.annotation.StaticAnnotation
 class visit[T](t: T) extends scala.annotation.StaticAnnotation
 class default[T](t: T) extends scala.annotation.StaticAnnotation
+class adts[T](adts: T*) extends scala.annotation.StaticAnnotation
+class ops[T](ops: T*) extends scala.annotation.StaticAnnotation
+
 
 class vicase extends scala.annotation.StaticAnnotation {
   inline def apply(defn: Any): Any = meta {
-    val DEBUG = true
+    val DEBUG = false
     if (DEBUG) println(defn.structure)
 
     def uncapitalize(s: String) = if (s.length > 0) s(0).toLower + s.substring(1) else s
@@ -67,16 +68,24 @@ class vicase extends scala.annotation.StaticAnnotation {
     def gen(t: Defn.Trait) = t.templ.stats match {
       case Some(stats) =>
         val newT = t.copy(
+          mods = Seq(),
           templ = t.templ.copy(
             stats = t.templ.stats.map(stats => stats.flatMap(genImpl(_))))
           )
-        val binds = stats.collect {
-          case Defn.Trait(List(mod"@adt"), Type.Name(name), _, _, _) =>
-            q"type ${Type.Name(name + "V")} = ${Type.Name(name + "Visit")}"
+        val binds = t.mods.collect {
+          case Mod.Annot(Term.Apply(Ctor.Ref.Name("adts"), names)) => names.collect{ case Term.Name(n) => n }
+        }.flatten ++ stats.collect {
+            case Defn.Trait(List(mod"@adt"), Type.Name(name), _, _, _) => name
+        } map { name =>
+          q"type ${Type.Name(name + "V")} = ${Type.Name(name + "Visit")}"
         }
-        val objs = stats.collect {
-          case Defn.Trait(Seq(Mod.Annot(Term.Apply(Ctor.Ref.Name(visitType), _))), Type.Name(name), _, _, _) =>
-            q"object ${Term.Name(uncapitalize(name))} extends ${Template(Nil,Seq(Term.Apply(Ctor.Ref.Name(name), Nil)),Term.Param(Nil, Name.Anonymous(), None, None), None)}"
+
+        val objs = t.mods.collect {
+          case Mod.Annot(Term.Apply(Ctor.Ref.Name("ops"), names)) => names.collect{ case Term.Name(n) => n }
+        }.flatten ++ stats.collect {
+          case Defn.Trait(Seq(Mod.Annot(Term.Apply(Ctor.Ref.Name(op), _))), Type.Name(name), _, _, _) if op == "visit" || op == "default" => name
+        } map { name =>
+          q"object ${Term.Name(uncapitalize(name))} extends ${Template(Nil,Seq(Term.Apply(Ctor.Ref.Name(name), Nil)),Term.Param(Nil, Name.Anonymous(), None, None), None)}"
         }
         val companion = q"object ${Term.Name(t.name.value)} extends ${Template(Nil,Seq(Term.Apply(Ctor.Ref.Name(t.name.value), Nil)),Term.Param(Nil, Name.Anonymous(), None, None), Some(binds ++ objs))}"
         println((newT,companion))
@@ -163,7 +172,6 @@ case class Ctr(adtName: String, ctrName: String, tparams: Seq[String], ts: Seq[T
   }
   val usedTvars = tparams.intersect(allTvars).map{name => Type.Param(Nil, Type.Name(name), Nil, Type.Bounds(None, None), Nil, Nil)}
 
-  // is generic when tparams are used in ts, t
   def genVisit =
     q"def $visitMethod[..$usedTvars]: ${if (ts.isEmpty) ot else Type.Function(ts,ot)}"
 
@@ -173,7 +181,6 @@ case class Ctr(adtName: String, ctrName: String, tparams: Seq[String], ts: Seq[T
       q"""def accept(v: ${Type.Name(adtName + "V")}) =
         ${ if (ts.isEmpty) selectCtr else Term.Apply(selectCtr, xs)}"""
     }
-    // TODO generic extends generic trait
     val adt = if (tparams.isEmpty) Ctor.Ref.Name(adtName) else Term.Apply(Term.ApplyType(Ctor.Ref.Name(adtName), t.asInstanceOf[Type.Apply].args), Nil)
     if (ts.isEmpty && usedTvars.isEmpty) q"case object ${Term.Name(ctrName)} extends $adt {..${Seq(accept)}}"
     else q"""case class ${Type.Name(ctrName)}[..$usedTvars] (...$params) extends $adt {..${Seq(accept)}}"""
@@ -186,13 +193,5 @@ case class Ctr(adtName: String, ctrName: String, tparams: Seq[String], ts: Seq[T
       else Term.Function(xs.map{x => param"$x"}, Term.Apply(Term.Name("otherwise"), Seq(Term.Apply(Term.Name(ctrName), xs))))
     q"def $visitMethod[..$usedTvars] = $body"
   }
-
-  //tparams
-//Decl.Type(Nil, Type.Name("O"+name), Seq(Type.Param(Nil, Name.Anonymous(), Nil, Type.Bounds(None, None), Nil, Nil)), Type.Bounds(None, None))
-//  def typeName(t: Type) = t match {
-//    case Type.Name(tname) if tname == name => tname
-//    case Type.Apply(tname, Seq()) if tname == name =>
-//    case _ => abort("Invalid constructor")
-//  }
 }
 

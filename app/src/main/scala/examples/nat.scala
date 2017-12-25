@@ -6,6 +6,7 @@ object NoRuleApplies extends Exception
 
 @vicase trait Term {
   @adt trait Tm
+
   @default(Tm) trait Eval1 {
     type OTm = Tm
     def otherwise = _ => throw NoRuleApplies
