@@ -145,7 +145,10 @@ class vicase extends scala.annotation.StaticAnnotation {
             self = Term.Param(Nil, Name.Anonymous(), Some(Type.Name(adtName + "V")), None)
           )
         )
-        if (parents.isEmpty) Seq(newTrt, q"val ${Pat.Var.Term(Term.Name(uncapitalize(name)))}: $tname") else Seq(newTrt)
+        if (parents.collectFirst{case p@Term.Apply(Ctor.Ref.Select(_, Ctor.Ref.Name(n)), _) if n == name => p}.isEmpty)
+          Seq(newTrt, q"val ${Pat.Var.Term(Term.Name(uncapitalize(name)))}: $tname")
+        else
+        Seq(newTrt)
 
       case stat => Seq(stat)
     }
