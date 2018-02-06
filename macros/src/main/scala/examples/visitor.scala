@@ -7,7 +7,7 @@ import scala.collection.immutable.Seq
 /**
   * Naming Convention
   * ---
-  * trait Term {
+  * @family trait Term {
   *   @adt trait Tm
   * }
   * ~>
@@ -30,8 +30,9 @@ import scala.collection.immutable.Seq
   *
   *   case object TmZero extends Tm
   *   case class TmSucc(x: Tm) extends Tm
-  *   trait TmVisit extends ... {
-  *     def tmZero: Tm => T
+  *   trait TmVisit extends super.TmVisit {
+  *     def tmZero: OTm
+  *     def tmSucc: Tm => OTm
   *   }
   * }
   *
@@ -43,7 +44,7 @@ class adts[T](adts: T*) extends scala.annotation.StaticAnnotation
 class ops[T](ops: T*) extends scala.annotation.StaticAnnotation
 
 
-class vicase extends scala.annotation.StaticAnnotation {
+class family extends scala.annotation.StaticAnnotation {
   inline def apply(defn: Any): Any = meta {
     val DEBUG = false
     if (DEBUG) println(defn.structure)
