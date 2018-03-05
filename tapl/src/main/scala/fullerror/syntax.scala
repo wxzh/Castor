@@ -38,7 +38,7 @@ trait FullError extends TyBool with TyVarBinding with BotJoinMeet {
 
   @default(Tm) trait PtmAppTerm extends super[TyBool].PtmAppTerm with super[BotJoinMeet].PtmAppTerm
 
-  @default(Tm) trait Eval1 extends super[TyBool].Eval1 with super[BotJoinMeet].Eval1 {
+  @default(Tm) trait Eval1 extends super[TyBool].Eval1 with super[TyVarBinding].Eval1 with super[BotJoinMeet].Eval1 {
     override def tmApp = {
       case (TmError, t2) => _ =>
         TmError

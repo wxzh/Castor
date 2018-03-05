@@ -34,7 +34,8 @@ trait Top extends Typed {
     override def apply(ty1: Ty) = ty2 =>
       (ty1 == ty2) || (ty2 match {
         case TyTop => true
-        case _ => ty1.accept(this)(ty2)
+        case _ => try { ty1.accept(this)(ty2) }
+                  catch { case _: MatchError => false }
       })
   }
 
@@ -70,7 +71,7 @@ trait TopJoinMeet extends Top {
 
   @default(Ty) trait Join {
     type OTy = Ty => Ty
-    def otherwise = _ => _ => throw NoRuleApplies()
+    def otherwise = _ => _ => throw new MatchError()
     override def apply(ty1: Ty) = ty2 => {
       if (subtype(ty1)(ty2)) {
         ty2
@@ -86,3 +87,4 @@ trait TopJoinMeet extends Top {
     }
   }
 }
+

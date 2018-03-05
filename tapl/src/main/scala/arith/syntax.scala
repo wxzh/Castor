@@ -4,7 +4,6 @@ import examples._
 import tapl.extracted._
 import util.Document._
 
-
 @adts(Binding)
 @ops(BindingShift, PBinding)
 @family trait Arith extends Nat with Bool {

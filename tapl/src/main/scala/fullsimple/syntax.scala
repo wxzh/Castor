@@ -23,5 +23,4 @@ trait FullSimple extends MoreExt with Variant {
   @visit(Ty) trait PtyArrowType extends super[MoreExt].PtyArrowType with super[Variant].PtyArrowType
   @visit(Ty) trait Subtype extends super[MoreExt].Subtype with super[Variant].Subtype
   @visit(Ty) trait TyEqv extends super[MoreExt].TyEqv with super[Variant].TyEqv
-//  trait TyMap extends TyVisitor with extension_TyMap  with variant_TyMap with tyvar_TyMap with tyid_TyDefault {_:TyV=>}
 }

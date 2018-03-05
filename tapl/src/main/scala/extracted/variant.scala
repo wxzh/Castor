@@ -71,32 +71,27 @@ trait Variant extends VarBinding with Typed {
     }
   }
 
-  @default(Tm) trait IsVal extends super.IsVal {
-    override def tmTag = (_,t,_) =>
+  @visit(Tm) trait IsVal extends super.IsVal {
+    def tmTag = (_,t,_) =>
       this(t)
-
-    override def tmAbs = super.tmAbs
+    def tmCase = (_,_) =>
+      false
   }
 
-//  trait variant_TyMap extends variant_TyDefault with typed_TyMap {_: TyV =>
-//    override def tyVariant = fieldsTys => c => TyVariant(fieldsTys.map { case (l,ty) => (l,this(ty)(c)) })
-//  }
-
   @visit(Tm) trait TmMap extends super.TmMap {
-//    val onType: (Int, Ty) => Ty
     def tmTag = (l,t,ty) => (onvar,c) => TmTag(l,this(t)(onvar,c),ty)
     def tmCase = (t,cases) => (onvar,c) => TmCase(this(t)(onvar,c), cases.map { case (l,x,t) => (l,x,this(t)(onvar,c+1)) })
   }
 
   def computeTy(ctx: Context, ty: Ty): Ty = ty
 
-  def simplifyTy(ctx: Context, ty: Ty): Ty =
-    try {
-      val ty1 = computeTy(ctx, ty)
-      simplifyTy(ctx, ty1)
-    } catch {
-      case _: NoRuleApplies => ty
-    }
+  def simplifyTy(ctx: Context, ty: Ty): Ty = ty
+//    try {
+//      val ty1 = computeTy(ctx, ty)
+//      simplifyTy(ctx, ty1)
+//    } catch {
+//      case _: NoRuleApplies => ty
+//    }
 
   @visit(Tm) trait Typeof extends super.Typeof {
     def tmTag = (li, ti, tyT) => ctx =>

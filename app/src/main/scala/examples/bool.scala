@@ -1,7 +1,5 @@
 package examples
 
-import utils._
-
 @family trait Bool extends Term {
   @adt trait Tm extends super.Tm {
     def TmTrue: Tm

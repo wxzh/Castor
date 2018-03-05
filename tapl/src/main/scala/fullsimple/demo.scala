@@ -15,7 +15,6 @@ object FullSimpleDemo extends util.Demo[Context, Command] {
 
   def processCommand(ctx: Context, cmd: Command): Context = cmd match {
     case Eval(t1) =>
-      println(t1)
       val ty1 = typeof(t1)(ctx)
       val doc1 = g2(ptmATerm(t1)(true, ctx) :: ":" :/: ptyType(ty1)(true,ctx) :: ";")
 
@@ -32,7 +31,6 @@ object FullSimpleDemo extends util.Demo[Context, Command] {
       ctx
 
     case Bind(x, bind) =>
-      println(bind)
       val bind1 = checkBinding(bind)(ctx)
       val bind2 = evalBinding(ctx, bind)
       val doc1 = x :: pBinding(bind1)(ctx) :: ";"

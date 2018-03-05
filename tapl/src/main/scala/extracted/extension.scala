@@ -9,7 +9,7 @@ import tapl.tyarith._
 @ops(BindingShift, PBinding, PBindingTy, GetTypeFromBind, CheckBinding)
 trait Extension extends TyArith with TyRcd with TyStr with TyLet with TyVarBinding {
   @adt trait Tm extends super[TyArith].Tm with super[TyRcd].Tm with super[TyLet].Tm with super[TyStr].Tm
-  @visit(Tm) trait Eval1 extends super[TyArith].Eval1 with super[TyRcd].Eval1 with super[TyLet].Eval1 with super[TyStr].Eval1
+  @visit(Tm) trait Eval1 extends super[TyArith].Eval1 with super[TyRcd].Eval1 with super[TyLet].Eval1 with super[TyStr].Eval1 with super[TyVarBinding].Eval1
   @visit(Tm) trait IsVal extends super[TyArith].IsVal with super[TyRcd].IsVal with super[TyLet].IsVal with super[TyStr].IsVal
   @visit(Tm) trait PtmTerm extends super[TyArith].PtmTerm with super[TyRcd].PtmTerm with super[TyLet].PtmTerm with super[TyStr].PtmTerm
   @visit(Tm) trait PtmATerm extends super[TyArith].PtmATerm with super[TyRcd].PtmATerm with super[TyLet].PtmATerm with super[TyStr].PtmATerm

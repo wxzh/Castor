@@ -203,13 +203,21 @@ trait TmAbbBinding extends Binding with VarApp {
 
 @family
 @adts(Tm,Ty)
-@ops(Eval1,IsVal,PtmTerm,PtmATerm,TmMap,Typeof,PtmAppTerm,PtyType,PtyAType,PtyArrowType,TyEqv,Subtype)
+@ops(IsVal,PtmTerm,PtmATerm,TmMap,Typeof,PtmAppTerm,PtyType,PtyAType,PtyArrowType,TyEqv,Subtype)
 trait TyVarBinding extends Typed with VarBinding {
 
   @adt trait Binding extends super.Binding {
     def TyVarBind: Binding
     def TmAbbBind: (Tm, Option[Ty]) => Binding
     def TyAbbBind: Ty => Binding
+  }
+
+  @visit(Tm) trait Eval1 extends super.Eval1 {
+    override def tmVar = (n,_) => ctx =>
+      ctx.getBinding(n) match {
+        case TmAbbBind(t1, _) => t1
+        case _ => throw new NoRuleApplies
+      }
   }
 
   @visit(Binding) trait PBinding extends super.PBinding {

@@ -56,13 +56,15 @@ trait MoreExt extends Extension {
 
   @visit(Tm) trait Eval1 extends super.Eval1 {
     def tmFix = t => ctx =>
-      if (isVal(t))
+      if (isVal(t)) {
         t match {
-          case TmAbs(_,_,t12) => termSubstTop(TmFix(t), t12)
+          case TmAbs(_, _, t12) =>
+            termSubstTop(TmFix(t), t12)
           case _ => throw NoRuleApplies()
         }
+      }
       else
-        TmFix(this(t)(ctx))
+        TmFix(this (t)(ctx))
     def tmAscribe = (t,ty) => ctx =>
       if (isVal(t)) t
       else TmAscribe(this(t)(ctx),ty)

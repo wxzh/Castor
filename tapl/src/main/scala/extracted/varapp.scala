@@ -47,9 +47,7 @@ import util.Print._
       else text("[bad index: " + x + "/" + n + " in {" + ctx.l.mkString(", ") + "}]")
   }
 
-  @default(Tm) trait IsVal extends super.IsVal {
-    override def tmVar = (_, _) => true
-  }
+  @default(Tm) trait IsVal extends super.IsVal
 
   @default(Tm) trait Eval1 extends super.Eval1
 }

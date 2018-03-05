@@ -1,7 +1,5 @@
 package examples
 
-import utils._
-
 object NoRuleApplies extends Exception
 
 @family trait Term {

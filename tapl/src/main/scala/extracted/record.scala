@@ -78,10 +78,6 @@ trait TyRcd extends Record with Type {
     def TyRecord: List[(String, Ty)] => Ty
   }
 
-  //  trait rcd_TyMap extends rcd_TyVisitor with TyMap {
-  //    def tyRecord = fieldTys => c => TyRecord(fieldTys.map { case (l, ty) => (l, this (ty)(c)) })
-  //  }
-
   @default(Ty) trait PtyType extends super.PtyType
 
   @visit(Ty) trait PtyAType extends super.PtyAType {
@@ -129,11 +125,12 @@ trait TyRcd extends Record with Type {
     }
   }
 
+  // bug in tyeqv or subtype TyRecord(List())
   @visit(Ty) trait TyEqv extends Subtype with super.TyEqv {
     override def tyRecord = fS => {
       case ty@TyRecord(fT) =>
         fS.length == fT.length && super.tyRecord(fS)(ty)
+//      case _ => false
     }
   }
-
 }

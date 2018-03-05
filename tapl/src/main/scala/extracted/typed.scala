@@ -95,7 +95,7 @@ trait Typed extends VarBinding with VarApp {
 
   @visit(Ty) trait TyEqv extends super.TyEqv {
     def tyArr = (ty11,ty12) => {
-      case TyArr(ty21,ty22) => this(ty11)(ty21) && this(ty12)(ty22)
+      case TyArr(ty21,ty22) => this(ty21)(ty11) && this(ty12)(ty22)
     }
   }
 }

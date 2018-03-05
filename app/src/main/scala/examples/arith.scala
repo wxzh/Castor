@@ -42,6 +42,7 @@ trait EqArith extends Arith {
   }
 }
 
+/*
 @family @adts(Tm) @ops(Eval1)
 trait EqArith extends Arith {
   @visit(Tm) trait Equal {
@@ -76,6 +77,7 @@ trait EqArith extends Arith {
     }
   }
 }
+*/
 //override def apply(t: Tm) = s => {
 //try { t.accept(this)(s) }
 //catch { case _: MatchError => false }
@@ -170,6 +172,30 @@ trait TyArith extends Arith {
     override def tmFalse = "false"
   }
 }
+
+//@family @adts(Tm) @ops(Eval1)
+//trait PTerm extends Term {
+//  @default(Tm) trait PPTerm {
+//    type OTm = String
+//    def otherwise = pAppTerm(_)
+//  }
+//  @default(Tm) trait PAppTerm extends PTerm {
+//    override def otherwise = pATerm(_)
+//  }
+//  @default(Tm) trait PATerm extends PTerm {
+//    override def otherwise = "(" + pTerm(_) + ")"
+//  }
+//}
+//@family @adts(Tm) @ops(Eval1)
+//trait PNat extends Nat with PTerm {
+//  @default(Tm) trait PAppTerm extends super.PAppTerm {
+//    override def tmPred = "pred" + pATerm(_)
+//    override def tmSucc = "pred" + pATerm(_)
+//  }
+//  @default(Tm) trait PATerm extends super.PATerm {
+//    override def tmZero = "0"
+//  }
+//}
 
 object Test extends App {
   import TyArith._

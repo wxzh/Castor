@@ -6,8 +6,9 @@ let x = succ 0
 evenodd = fix (lambda eo: {even: Nat -> Bool, odd: Nat -> Bool}.
 	{even = lambda x: Nat. if iszero x then true else eo.odd (pred x),
 	 odd = lambda x: Nat. if iszero x then false else eo.even (pred x)});
-		
-evenodd.even (succ 0);
+
+even = evenodd.even;
+even 0;
 evenodd.even (succ (succ 0));
 
 // letrec is just let with fix!
@@ -19,31 +20,8 @@ letrec even:Nat -> Bool =
 in
 	even (succ (succ (succ 0)));
 
-
-/*** RECORDS AND VARIANTS ***/
-// Records
-PhysicalAddr = {firstlast:String, addr:String};
-// type is not saved during compution of ascribe term!
-{firstlast= "lambdamix", addr="Russia"} as PhysicalAddr;
-VirtualAddr = {name:String, email:String};
-
-// Variants 
-Addr = <physical:PhysicalAddr, virtual:VirtualAddr>;
-getName = lambda a:Addr. case a of
-	<physical=x> ==> x.firstlast | <virtual=y> ==> y.name;
-
-"123";
-
-pa = {firstlast= "lambdamix", addr="Russia"} as PhysicalAddr;
-va = {name = "ilya", email = "ilya@ru"} as VirtualAddr;
-addr1 = <physical=pa> as Addr;
-addr2 = <virtual=va> as Addr;
-
-getName addr1;
-getName addr2;
-
-lambda _: Unit. 5;
-\_: Unit. 5;
-
-let x = 5 in 7;
-let _ = 5 in 7;
+(\f: Unit->Nat. if iszero (f unit) then "zero" else "not zero") (\u: Unit. 0);
+let x = {a = 2, b = 3} in let y = succ x.a in y;
+(fix (\eo: {even: Nat -> Bool, odd: Nat -> Bool}.{even = \x: Nat. if iszero x then true else eo.odd (pred x), odd = \x: Nat. if iszero x then false else eo.even (pred x)})).even 2;
+(\v: <l:Nat, r:Nat>. case v of <l=lv> ==> "left" | <r=rv> ==> "right") (<r = 5> as <l:Nat, r:Nat>);
+((\r: {x:Nat, y:Bool}. \v: <l:Nat, r:Nat>. case v of <l=lv> ==> if r.y then lv else r.x | <r=rv> ==> rv) {x = 3, y = false}) (<l = 5> as <l:Nat, r:Nat>);
