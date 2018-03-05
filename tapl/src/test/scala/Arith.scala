@@ -11,10 +11,4 @@ class ArithTest extends FreeSpec with Matchers {
       eval(Context(),t1) shouldBe t2
     }
   }
-
-  "Print" - {
-    "t" in {
-      print(ptmTerm(t2)(true, Context()), 60) shouldBe ""
-    }
-  }
 }
