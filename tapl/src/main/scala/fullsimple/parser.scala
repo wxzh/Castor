@@ -109,7 +109,7 @@ object FullSimpleParsers extends StandardTokenParsers with PackratParsers with I
   lazy val cases: PackratParser[Res[List[(String, String, Tm)]]] =
     rep1sep(`case`, "|") ^^ { cs => ctx: Context => cs.map { c => c(ctx) } }
   lazy val `case`: PackratParser[Res[(String, String, Tm)]] =
-    ("<" ~> lcid <~ "=") ~ (lcid <~ ">") ~ ("==>" ~> term) ^^ { case l1 ~ l2 ~ t => ctx: Context => (l1, l2, t(ctx.addName(l2))) }
+    ("<" ~> lcid <~ "=") ~ (lcid <~ ">") ~ ("=>" ~> term) ^^ { case l1 ~ l2 ~ t => ctx: Context => (l1, l2, t(ctx.addName(l2))) }
 
   lazy val fields: PackratParser[Res[List[(String, Tm)]]] =
     repsep(field, ",") ^^ { fs => ctx: Context => fs.zipWithIndex.map { case (ft, i) => ft(ctx, i + 1) } }
@@ -127,4 +127,8 @@ object FullSimpleParsers extends StandardTokenParsers with PackratParsers with I
     case t                 => sys.error(t.toString)
   }
 
+  def inputTm(s: String) = phrase(term)(new lexical.Scanner(s)) match {
+    case t if t.successful => t.get
+    case t                 => sys.error(t.toString)
+  }
 }

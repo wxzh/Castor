@@ -6,10 +6,10 @@ import scala.util.parsing.combinator.PackratParsers
 import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 
 object RcdSubBotParsers extends StandardTokenParsers with PackratParsers with ImplicitConversions {
-  lexical.reserved += ("lambda", "Bool", "true", "false", "if", "then", "else",
+  lexical.reserved += ("Bool", "true", "false", "if", "then", "else",
     "Nat", "String", "Unit", "Float", "unit", "case", "let", "in", "succ", "pred",
     "as", "of", "fix", "iszero", "letrec", "_", "Top", "Bot")
-  lexical.delimiters += ("(", ")", ";", "/", ".", ":", "->", "=", "<", ">", "{", "}", "=>", "==>", ",", "|")
+  lexical.delimiters += ("\\", "(", ")", ";", "/", ".", ":", "->", "=", "<", ">", "{", "}", "=>", "==>", ",", "|")
 
   // lower-case identifier
   lazy val lcid: PackratParser[String] = ident ^? { case id if id.charAt(0).isLower => id }
@@ -56,8 +56,8 @@ object RcdSubBotParsers extends StandardTokenParsers with PackratParsers with Im
   // TERMS
   lazy val term: PackratParser[Res[Tm]] =
     appTm |
-      ("lambda" ~> lcid) ~ (":" ~> `type`) ~ ("." ~> term) ^^ { case v ~ ty ~ t => ctx: Context => TmAbs(v, ty(ctx), t(ctx.addName(v))) } |
-      ("lambda" ~ "_") ~> (":" ~> `type`) ~ ("." ~> term) ^^ { case ty ~ t => ctx: Context => TmAbs("_", ty(ctx), t(ctx.addName("_"))) }
+      ("\\" ~> lcid) ~ (":" ~> `type`) ~ ("." ~> term) ^^ { case v ~ ty ~ t => ctx: Context => TmAbs(v, ty(ctx), t(ctx.addName(v))) } |
+      ("\\" ~ "_") ~> (":" ~> `type`) ~ ("." ~> term) ^^ { case ty ~ t => ctx: Context => TmAbs("_", ty(ctx), t(ctx.addName("_"))) }
   lazy val appTm: PackratParser[Res[Tm]] =
     appTm ~ pathTm ^^ { case t1 ~ t2 => ctx: Context => TmApp(t1(ctx), t2(ctx)) } |
       pathTm
@@ -83,4 +83,8 @@ object RcdSubBotParsers extends StandardTokenParsers with PackratParsers with Im
     case t                 => sys.error(t.toString)
   }
 
+  def inputTm(s: String) = phrase(term)(new lexical.Scanner(s)) match {
+    case t if t.successful => t.get
+    case t                 => sys.error(t.toString)
+  }
 }

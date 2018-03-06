@@ -6,8 +6,8 @@ import scala.util.parsing.combinator.syntactical.StandardTokenParsers
 import FullError._
 
 object FullErrorParsers extends StandardTokenParsers with PackratParsers with ImplicitConversions {
-  lexical.reserved += ("lambda", "Bool", "true", "false", "if", "then", "else", "_", "try", "with", "error", "Top", "Bot")
-  lexical.delimiters += ("(", ")", ";", "/", ".", ":", "->")
+  lexical.reserved += ("Bool", "true", "false", "if", "then", "else", "_", "try", "with", "error", "Top", "Bot")
+  lexical.delimiters += ("\\", "(", ")", ";", "/", ".", ":", "->")
 
   // lower-case identifier
   lazy val lcid: PackratParser[String] = ident ^? { case id if id.charAt(0).isLower => id }
@@ -50,8 +50,8 @@ object FullErrorParsers extends StandardTokenParsers with PackratParsers with Im
 
   lazy val term: PackratParser[Res[Tm]] =
     appTm |
-      ("lambda" ~> lcid) ~ (":" ~> `type`) ~ ("." ~> term) ^^ { case v ~ ty ~ t => ctx: Context => TmAbs(v, ty(ctx), t(ctx.addName(v))) } |
-      ("lambda" ~ "_") ~> (":" ~> `type`) ~ ("." ~> term) ^^ { case ty ~ t => ctx: Context => TmAbs("_", ty(ctx), t(ctx.addName("_"))) } |
+      ("\\" ~> lcid) ~ (":" ~> `type`) ~ ("." ~> term) ^^ { case v ~ ty ~ t => ctx: Context => TmAbs(v, ty(ctx), t(ctx.addName(v))) } |
+      ("\\" ~ "_") ~> (":" ~> `type`) ~ ("." ~> term) ^^ { case ty ~ t => ctx: Context => TmAbs("_", ty(ctx), t(ctx.addName("_"))) } |
       ("if" ~> term) ~ ("then" ~> term) ~ ("else" ~> term) ^^ { case t1 ~ t2 ~ t3 => ctx: Context => TmIf(t1(ctx), t2(ctx), t3(ctx)) } |
       ("try" ~> term) ~ ("with" ~> term) ^^ { case t1 ~ t2 => ctx: Context => TmTry(t1(ctx), t2(ctx)) }
 
@@ -67,6 +67,11 @@ object FullErrorParsers extends StandardTokenParsers with PackratParsers with Im
       "error" ^^ { _ => ctx: Context => TmError }
 
   def input(s: String) = phrase(topLevel)(new lexical.Scanner(s)) match {
+    case t if t.successful => t.get
+    case t                 => sys.error(t.toString)
+  }
+
+  def inputTm(s: String) = phrase(term)(new lexical.Scanner(s)) match {
     case t if t.successful => t.get
     case t                 => sys.error(t.toString)
   }
