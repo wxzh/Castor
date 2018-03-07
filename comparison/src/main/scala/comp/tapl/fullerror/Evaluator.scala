@@ -51,12 +51,13 @@ object Evaluator {
       throw new NoRuleApplies(t)
   }
 
+
   def eval(ctx: Context, t: Term): Term =
-    if (isVal(ctx, t))
-      t
-    else {
-      val t1 = eval1(ctx, t)
-      eval(ctx, t1)
+    try {
+      val t1 = eval1(ctx,t)
+      eval(ctx,t1)
+    } catch {
+      case _: NoRuleApplies => t
     }
 
   def evalBinding(ctx: Context, bind: Binding): Binding = bind match {

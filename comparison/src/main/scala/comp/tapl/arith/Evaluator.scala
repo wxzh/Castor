@@ -34,8 +34,12 @@ object Evaluator {
   }
 
   def eval(t: Term): Term =
-    if (isVal(t)) t else eval(eval1(t))
-
+    try {
+      val t1 = eval1(t)
+      eval(t1)
+    } catch {
+      case _: NoRuleApplies => t
+    }
 }
 
 object Util {

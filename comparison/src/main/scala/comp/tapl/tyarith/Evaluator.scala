@@ -2,7 +2,6 @@ package comp.tapl.tyarith
 
 // Small-step semantics as described by Pierce
 object Evaluator {
-
   import Util._
 
   private def eval1(t: Term): Term = t match {
@@ -34,11 +33,12 @@ object Evaluator {
   }
 
   def eval(t: Term): Term =
-    if (isVal(t))
-      t
-    else {
+    try {
       val t1 = eval1(t)
       eval(t1)
+    } catch {
+      case _: NoRuleApplies if isVal(t) => t
+      case _: NoRuleApplies             => throw new NoRuleApplies(t)
     }
 
 }
