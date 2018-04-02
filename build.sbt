@@ -1,6 +1,7 @@
 scalaVersion in ThisBuild := "2.12.3"
 
 lazy val localScalacOpts = Seq(
+  "-language:higherKinds",
   "-feature",
   "-deprecation")
 
@@ -20,6 +21,10 @@ lazy val macros = project.settings(
   metaMacroSettings,
   libraryDependencies += "org.scalameta" %% "scalameta" % "1.8.0" //% Provided
 )
+
+lazy val app = project.settings(
+  metaMacroSettings
+).dependsOn(macros)
 
 lazy val tapl = project.settings(
   metaMacroSettings,

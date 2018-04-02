@@ -24,7 +24,9 @@ class Test extends FunSuite {
       1 to rep foreach { _ => inputs.foreach(process) }
     }
 
-  def output(name: String, t1: Double, t2: Double): Unit = println(f"$name & $t1%.1f & $t2%.1f")
+
+
+  def output(name: String, t1: Double, t2: Double): Unit = println(f"$name  $t1%.1f  $t2%.1f")
 
   def compare[A,B](name: String, modular: util.Bench[A], nonmod: Benchmark[B]): Unit = {
     val lines: List[String] = readLines(name)
@@ -51,56 +53,56 @@ class Test extends FunSuite {
 
     output(name, pe1, pe2)
   }
-
-    test("Castor with monolithic") {
-      compareArith("arith", comp.tapl.arith.Bench, comp.tapl.arith2.Bench)
-    }
-
-  test("Castor with monolithic") {
-    compareArith("arith", tapl.arith.Bench, comp.tapl.arith.Bench)
+//
+//    test("Castor") {
+//      compareArith("arith",tapl.arith.Bench, )
+//    }
+//
+//  test("Castor with monolithic") {
+//    compareArith("arith", tapl.arith.Bench, comp.tapl.arith.Bench)
+//  }
+//
+  test("open case class and partial function") {
+    compareArith("arith", arith2.Bench, arith4.Bench)
   }
 
-  test("EADD with partial function") {
-    compareArith("arith", arith3.Bench, arith4.Bench)
+  test("arith") {
+    compare("arith", arith.Bench, comp.tapl.arith.Demo)
   }
 
-//  test("arith") {
-//    compare("arith", arith.Bench, comp.tapl.arith.Demo)
-//  }
-//
-//  test("untyped") {
-//    compare("untyped", untyped.Bench, comp.tapl.untyped.Demo)
-//  }
-//
-//  test("fulluntyped") {
-//    compare("fulluntyped", fulluntyped.Bench, comp.tapl.fulluntyped.Demo)
-//  }
-//
-//  test("tyarith") {
-//    compare("tyarith", tyarith.Bench, comp.tapl.tyarith.Demo)
-//  }
-//
-//  test("simplebool") {
-//    compare("simplebool", simplebool.Bench, comp.tapl.simplebool.Demo)
-//  }
-//
-//  test("fullsimple") {
-//    compare("fullsimple", fullsimple.Bench, comp.tapl.fullsimple.Demo)
-//  }
-//
-//  test("bot") {
-//    compare("bot", bot.Bench, comp.tapl.bot.Demo)
-//  }
-//
-//  test("fullerror") {
-//    compare("fullerror", fullerror.Bench, comp.tapl.fullerror.Demo)
-//  }
-//
-//  test("rcdsubbot") {
-//    compare("rcdsubbot", rcdsubbot.Bench, comp.tapl.rcdsubbot.Demo)
-//  }
-//
-//  test("fullsub") {
-//    compare("fullsub", fullsub.Bench, comp.tapl.fullsub.Demo)
-//  }
+  test("untyped") {
+    compare("untyped", untyped.Bench, comp.tapl.untyped.Demo)
+  }
+
+  test("fulluntyped") {
+    compare("fulluntyped", fulluntyped.Bench, comp.tapl.fulluntyped.Demo)
+  }
+
+  test("tyarith") {
+    compare("tyarith", tyarith.Bench, comp.tapl.tyarith.Demo)
+  }
+
+  test("simplebool") {
+    compare("simplebool", simplebool.Bench, comp.tapl.simplebool.Demo)
+  }
+
+  test("fullsimple") {
+    compare("fullsimple", fullsimple.Bench, comp.tapl.fullsimple.Demo)
+  }
+
+  test("bot") {
+    compare("bot", bot.Bench, comp.tapl.bot.Demo)
+  }
+
+  test("fullerror") {
+    compare("fullerror", fullerror.Bench, comp.tapl.fullerror.Demo)
+  }
+
+  test("rcdsubbot") {
+    compare("rcdsubbot", rcdsubbot.Bench, comp.tapl.rcdsubbot.Demo)
+  }
+
+  test("fullsub") {
+    compare("fullsub", fullsub.Bench, comp.tapl.fullsub.Demo)
+  }
 }

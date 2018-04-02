@@ -128,12 +128,6 @@ import util.Print._
     type OTm = Context => Ty
   }
 
-  //  trait TyMap extends TyDefault {_: TyV =>
-  //    type T = Int => Ty
-  //    val onVar: (Int,Int,Int) => Ty
-  //    def otherwise = ty => _ => ty
-  //  }
-
   @visit(Ty) trait TyEqv {
     type OTy = Ty => Boolean
     override def apply(ty1: Ty) = ty2 => {

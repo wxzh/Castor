@@ -51,13 +51,13 @@ class family extends scala.annotation.StaticAnnotation {
 
     def uncapitalize(s: String) = if (s.length > 0) s(0).toLower + s.substring(1) else s
 
-    def decl2ctr(adtName: String, tparams: Seq[Type.Param]): PartialFunction[Stat, Ctr] = {
-      case Decl.Def(_, Term.Name(ctrName), Nil, Nil, tpe) =>
-        val tparamNames = tparams.map{ _.name.value }
+    def decl2ctr(adtName: String): PartialFunction[Stat, Ctr] = {
+      case Decl.Def(_, Term.Name(ctrName), tparams, Nil, tpe) =>
         tpe match {
-          case Type.Function(ts, t) => Ctr(adtName, ctrName, tparamNames, ts.map(toType(_)), t)
-          case _ => Ctr(adtName, ctrName, tparamNames,Seq(), tpe)
+          case Type.Function(ts, t) => Ctr(adtName, ctrName, tparams, ts.map(toType(_)), t)
+          case _ => Ctr(adtName, ctrName, tparams, Seq(), tpe)
         }
+      case d => abort("Unrecognized Def:" + d.structure)
     }
 
     def toType(arg: Type.Arg): Type = arg match {
@@ -108,7 +108,7 @@ class family extends scala.annotation.StaticAnnotation {
         val typeDecl = q"type $visType <: $visTrait"
         val visParent = Ctor.Ref.Name(name + "Visit")
 
-        val ctrs = body.map(stats => stats.map(decl2ctr(name, tparams)(_))).getOrElse(Nil)
+        val ctrs = body.map(stats => stats.map(decl2ctr(name)(_))).getOrElse(Nil)
         val adtDecl =
           q"""abstract class $adtType[..$tparams] {
                 def accept(v: $visType): ${
@@ -118,6 +118,10 @@ class family extends scala.annotation.StaticAnnotation {
         val parents2 = parents.collect {
           case Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name)), u) =>
             Term.Apply(Ctor.Ref.Select(t, visParent), u)
+          case Term.Apply(Term.ApplyType(Ctor.Ref.Select(t, Ctor.Ref.Name(name)), _), u) =>
+            Term.Apply(Ctor.Ref.Select(t, visParent), u)
+//          case p => abort(p.structure)
+//            Term.Apply(Term.ApplyType(Ctor.Ref.Select(Term.Super(Name.Anonymous(), Name.Anonymous()), Ctor.Ref.Name("Tm")), Seq(Type.Name("A"))), Nil)
         }
         // visitor interface
         val outTypeDecl = Decl.Type(Nil, Type.Name("O"+name), tparams, Type.Bounds(None, None))
@@ -131,6 +135,8 @@ class family extends scala.annotation.StaticAnnotation {
         val caseDecls = ctrs.map(_.genCase)
         val parents3 = parents.collect {
           case Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name)), u) =>
+            Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name+"Default")), u)
+          case Term.Apply(Term.ApplyType(Ctor.Ref.Select(t, Ctor.Ref.Name(name)), _), u) =>
             Term.Apply(Ctor.Ref.Select(t, Ctor.Ref.Name(name+"Default")), u)
         }
         val template3 = Template(Nil, Term.Apply(visParent, Nil) +: parents3, Term.Param(Nil, Name.Anonymous(), Some(visType), None),
@@ -162,22 +168,19 @@ class family extends scala.annotation.StaticAnnotation {
   }
 }
 
-case class Ctr(adtName: String, ctrName: String, tparams: Seq[String], ts: Seq[Type], t: Type) {
-  val ot = if (tparams.isEmpty) Type.Name("O" + adtName) else Type.Apply(Type.Name("O" + adtName), t.asInstanceOf[Type.Apply].args)
+case class Ctr(adtName: String, ctrName: String, tparams: Seq[Type.Param], ts: Seq[Type], t: Type) {
+  val ot = t match {
+    case _: Type.Name => Type.Name("O" + adtName)
+    case Type.Apply(_,args) => Type.Apply(Type.Name("O" + adtName),args)
+  }
+  //if (tparams.isEmpty) Type.Name("O" + adtName) else Type.Apply(Type.Name("O" + adtName), t.asInstanceOf[Type.Apply].args)
+//    t.asInstanceOf[Type.Apply].copy { name = "O" + adtName }
   val xs = for (i <- 1 to ts.length) yield Term.Name("x"+i)
   val params = Seq((xs,ts).zipped.map { (x,t) => param"$x: $t" })
   val visitMethod = Term.Name(ctrName(0).toLower + ctrName.substring(1))
 
-  val allTvars = (t +: ts).flatMap { t =>
-    t match {
-      case Type.Apply(Type.Name(name), ts) if name == adtName => ts.collect { case Type.Name(n) => n }
-      case _ => Seq()
-    }
-  }
-  val usedTvars = tparams.intersect(allTvars).map{name => Type.Param(Nil, Type.Name(name), Nil, Type.Bounds(None, None), Nil, Nil)}
-
   def genVisit =
-    q"def $visitMethod[..$usedTvars]: ${if (ts.isEmpty) ot else Type.Function(ts,ot)}"
+    q"def $visitMethod[..$tparams]: ${if (ts.isEmpty) ot else Type.Function(ts,ot)}"
 
   def genCase = {
     val accept = {
@@ -185,17 +188,21 @@ case class Ctr(adtName: String, ctrName: String, tparams: Seq[String], ts: Seq[T
       q"""def accept(v: ${Type.Name(adtName + "V")}) =
         ${ if (ts.isEmpty) selectCtr else Term.Apply(selectCtr, xs)}"""
     }
-    val adt = if (tparams.isEmpty) Ctor.Ref.Name(adtName) else Term.Apply(Term.ApplyType(Ctor.Ref.Name(adtName), t.asInstanceOf[Type.Apply].args), Nil)
-    if (ts.isEmpty && usedTvars.isEmpty) q"case object ${Term.Name(ctrName)} extends $adt {..${Seq(accept)}}"
-    else q"""case class ${Type.Name(ctrName)}[..$usedTvars] (...$params) extends $adt {..${Seq(accept)}}"""
+    val adt = t match {
+      case _: Type.Name => Ctor.Ref.Name(adtName)
+      case Type.Apply(_,args) => Term.Apply(Term.ApplyType(Ctor.Ref.Name(adtName), args), Nil)
+    }
+
+    if (ts.isEmpty && tparams.isEmpty) q"case object ${Term.Name(ctrName)} extends $adt {..${Seq(accept)}}"
+    else q"""case class ${Type.Name(ctrName)}[..$tparams] (...$params) extends $adt {..${Seq(accept)}}"""
   }
 
   // reconstructing the object
   def genOtherwise = {
     val body =
-      if (xs.isEmpty) Term.Apply(Term.Name("otherwise"), if (usedTvars.isEmpty) Seq(Term.Name(ctrName)) else Seq(Term.Apply(Term.Name(ctrName), Seq())))
+      if (xs.isEmpty) Term.Apply(Term.Name("otherwise"), if (tparams.isEmpty) Seq(Term.Name(ctrName)) else Seq(Term.Apply(Term.Name(ctrName), Seq())))
       else Term.Function(xs.map{x => param"$x"}, Term.Apply(Term.Name("otherwise"), Seq(Term.Apply(Term.Name(ctrName), xs))))
-    q"def $visitMethod[..$usedTvars] = $body"
+    q"def $visitMethod[..$tparams] = $body"
   }
 }
 
