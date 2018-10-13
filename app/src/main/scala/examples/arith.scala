@@ -42,45 +42,43 @@ trait EqArith extends Arith {
   }
 }
 
-/*
-@family @adts(Tm) @ops(Eval1)
-trait EqArith extends Arith {
-  @visit(Tm) trait Equal {
-    type OTm = Tm => Boolean
-    def tmZero = {
-      case TmZero => true
-      case _ => false
-    }
-    def tmSucc = t => {
-      case TmSucc(s) => this(t)(s)
-      case _ => false
-    }
-    def tmPred = t => {
-      case TmPred(s) => this(t)(s)
-      case _ => false
-    }
-    def tmTrue = {
-      case TmTrue => true
-      case _ => false
-    }
-    def tmFalse = {
-      case TmFalse => true
-      case _ => false
-    }
-    def tmIf = (t1,t2,t3) => {
-      case TmIf(s1,s2,s3) => this(t1)(s1) && this(t2)(s2) && this(t3)(s3)
-      case _ => false
-    }
-    def tmIsZero = t => {
-      case TmIsZero(s) => this(t)(s)
-      case _ => false
-    }
-  }
-}
-*/
+//@family @adts(Tm) @ops(Eval1)
+//trait EqArith extends Arith {
+//  @visit(Tm) trait Equal {
+//    type OTm = Tm => Boolean
+//    def tmZero = {
+//      case TmZero => true
+//      case _ => false
+//    }
+//    def tmSucc = t => {
+//      case TmSucc(s) => this(t)(s)
+//      case _ => false
+//    }
+//    def tmPred = t => {
+//      case TmPred(s) => this(t)(s)
+//      case _ => false
+//    }
+//    def tmTrue = {
+//      case TmTrue => true
+//      case _ => false
+//    }
+//    def tmFalse = {
+//      case TmFalse => true
+//      case _ => false
+//    }
+//    def tmIf = (t1,t2,t3) => {
+//      case TmIf(s1,s2,s3) => this(t1)(s1) && this(t2)(s2) && this(t3)(s3)
+//      case _ => false
+//    }
+//    def tmIsZero = t => {
+//      case TmIsZero(s) => this(t)(s)
+//      case _ => false
+//    }
+//  }
+//}
 //override def apply(t: Tm) = s => {
-//try { t.accept(this)(s) }
-//catch { case _: MatchError => false }
+//  try { t.accept(this)(s) }
+//  catch { case _: MatchError => false }
 //}
 
 object TestEqArith extends App {
@@ -90,7 +88,7 @@ object TestEqArith extends App {
   println(equal(t)(t))      // true
 }
 
-@family @adts(Tm) @ops(Eval1)
+@family /*@adts(Tm) */@ops(Eval1)
 trait TyArith extends Arith {
   @adt trait Ty {
     def TyNat: Ty
@@ -99,32 +97,21 @@ trait TyArith extends Arith {
   @visit(Tm) trait Typeof {
     type OTm = Option[Ty]
     def tmZero = Some(TyNat)
-    def tmSucc = t => for {
-      ty <- this(t)
-      if (ty == TyNat)
-    } yield(TyNat)
+    def tmSucc = t => this(t) match {
+      case ty@Some(TyNat) => ty
+      case _ => None
+    }
     def tmPred = tmSucc
     def tmTrue = Some(TyBool)
-    def tmFalse = Some(TyBool)
-    def tmIf = (t1,t2,t3) =>
-//        typeof(t1) match {
-//      case Some(TyBool) => (typeof(t2), typeof(t3)) match {
-//        case (Some(ty2), Some(ty3)) if (ty2 == ty3) => Some(ty2)
-//        case _ => None
-//      }
-//      case _ => None
-//    }
-      for {
-      ty1 <- this(t1)
-      if (ty1 == TyBool)
-      ty2 <- this(t2)
-      ty3 <- this(t3)
-      if (ty2 == ty3)
-    } yield(ty2)
-    def tmIsZero = t => for {
-      ty <- this(t)
-      if (ty == TyNat)
-    } yield(TyBool)
+    def tmFalse = tmTrue
+    def tmIf = (t1,t2,t3) => (this(t1),this(t2),this(t3)) match {
+      case (Some(TyBool), ty2, ty3) if ty2 == ty3 => ty2
+      case _ => None
+    }
+    def tmIsZero = t => this(t) match {
+      case Some(TyNat) => Some(TyBool)
+      case _ => None
+    }
   }
 
   @visit(Tm) trait Eval {
@@ -212,3 +199,4 @@ object Test extends App {
   // iszero(if false then true else pred(succ 0))
   println(ptmTerm(term2))
 }
+

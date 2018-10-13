@@ -1,0 +1,49 @@
+package examples
+
+trait Company101 {
+  case class Company(depts: List[Dept])
+  trait Unit
+  case class Dept(name: String, manager: Employee, units: List[Unit]) extends Unit
+  case class Employee(person: Person, salary: Salary) extends Unit
+  case class Person(name: String, address: String)
+  case class Salary(value: Float)
+
+  def increase(value: Float, company: Company) =
+    Company(company.depts.map(incD(value,_)))
+  def incD(value: Float, dept: Dept) =
+    Dept(dept.name, incE(dept.manager), dept.units.map(incU(value,_)))
+  def incU(value: Float, unit: Unit) = unit match {
+    case e: Employee => incE(value,e)
+    case d: Dept => incD(value,d)
+  }
+  def incE(value: Float, e: Employee) =
+    Employee(e.person, incS(value, e.salary))
+  def incS(value: Float, s: Salary) =
+    Salary(s.value + value)
+}
+
+trait Company101Castor {
+  @adt class Company(depts: List[Dept])
+  @adt trait Unit
+  @variant(Unit) class Dept(name: String, manager: Employee, units: List[Unit])
+  @variant(Unit) class Employee(person: Person, salary: Salary)
+  @adt class Person(name: String, address: String)
+  @adt class Salary(value: Float)
+
+  @transform(Company,Unit,Person,Salary) trait increase {
+    def company = c => c.depts.foreach{this(_)}
+    def dept = d =>
+  }
+  def increase(value: Float, company: Company) =
+    Company(company.depts.map(incD(value,_)))
+  def incD(value: Float, dept: Dept) =
+    Dept(dept.name, incE(dept.manager), dept.units.map(incU(value,_)))
+  def incU(value: Float, unit: Unit) = unit match {
+    case e: Employee => incE(value,e)
+    case d: Dept => incD(value,d)
+  }
+  def incE(value: Float, e: Employee) =
+    Employee(e.person, incS(value, e.salary))
+  def incS(value: Float, s: Salary) =
+    Salary(s.value + value)
+}

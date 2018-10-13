@@ -149,7 +149,7 @@ class family extends scala.annotation.StaticAnnotation {
           mods = Seq(),
           templ = trt.templ.copy(
             parents = Ctor.Ref.Name(adtName + visitType.capitalize) +: trt.templ.parents,
-            self = Term.Param(Nil, Name.Anonymous(), Some(Type.Name(adtName + "V")), None)
+            self = Term.Param(Nil, Term.Name("rec"), Some(Type.Name(adtName + "V")), None)
           )
         )
         if (parents.collectFirst{case p@Term.Apply(Ctor.Ref.Select(_, Ctor.Ref.Name(n)), _) if n == name => p}.isEmpty)

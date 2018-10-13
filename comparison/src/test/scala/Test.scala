@@ -28,6 +28,17 @@ class Test extends FunSuite {
 
   def output(name: String, t1: Double, t2: Double): Unit = println(f"$name  $t1%.1f  $t2%.1f")
 
+  def benchArith[A](name: String, impl: util.Bench[A]): Unit = {
+    val lines: List[String] = readLines("arith")
+
+    val es1 = lines.map(impl.parse)
+
+    val rep = 1
+    val pe1 = benchmark(es1, impl.eval, rep).value
+
+    println(f"$name  $pe1%.1f")
+  }
+
   def compare[A,B](name: String, modular: util.Bench[A], nonmod: Benchmark[B]): Unit = {
     val lines: List[String] = readLines(name)
 
@@ -53,17 +64,11 @@ class Test extends FunSuite {
 
     output(name, pe1, pe2)
   }
-//
-//    test("Castor") {
-//      compareArith("arith",tapl.arith.Bench, )
-//    }
-//
-//  test("Castor with monolithic") {
-//    compareArith("arith", tapl.arith.Bench, comp.tapl.arith.Bench)
-//  }
-//
-  test("open case class and partial function") {
-    compareArith("arith", arith2.Bench, arith4.Bench)
+
+  test("arith comparison") {
+    benchArith("visitor", arith3.Bench)
+    benchArith("open case class", arith2.Bench)
+    benchArith("partial function", arith4.Bench)
   }
 
   test("arith") {
