@@ -14,13 +14,13 @@ trait FullSub extends TopJoinMeet with MoreExt {
   @visit(Ty) trait TyEqv extends super[TopJoinMeet].TyEqv with super[MoreExt].TyEqv
   @visit(Ty) trait Subtype extends super[TopJoinMeet].Subtype with super[MoreExt].Subtype
   @default(Ty) trait Join extends super[TopJoinMeet].Join {
-    override def tyRecord = fS => {
+    override def tyRecord = x => {
       case TyRecord(fT) =>
-        val labelS = fS.map { _._1 }
+        val labelS = x.fields.map { _._1 }
         val labelT = fT.map { _._1 }
         val commonLabels = labelS intersect labelT
         val commonFs = commonLabels.map { li =>
-          val (_, tySi) = fS.find { _._1 == li }.get
+          val (_, tySi) = x.fields.find { _._1 == li }.get
           val (_, tyTi) = fT.find { _._1 == li }.get
           (li, this(tySi)(tyTi))
         }
@@ -28,14 +28,14 @@ trait FullSub extends TopJoinMeet with MoreExt {
     }
   }
   @default(Ty) trait Meet extends super[TopJoinMeet].Meet {
-    override def tyRecord = fS => {
+    override def tyRecord = x => {
       case TyRecord(fT) =>
-        val labelS = fS.map { _._1 }
+        val labelS = x.fields.map { _._1 }
         val labelT = fT.map { _._1 }
         val allLabels = (labelS union labelT).distinct
         // there was an error by Pierce!!
         val allFs = allLabels.flatMap { li =>
-          (fS.find { _._1 == li }, fT.find { _._1 == li }) match {
+          (x.fields.find { _._1 == li }, fT.find { _._1 == li }) match {
             case (Some((_, tySi)), Some((_, tyTi))) =>
               Some(li -> this(tySi)(tyTi))
             case (Some((_, tySi)), _) =>
@@ -50,11 +50,11 @@ trait FullSub extends TopJoinMeet with MoreExt {
     }
   }
   @visit(Tm) trait Typeof extends super[TopJoinMeet].Typeof with super[MoreExt].Typeof {
-    override def tmIf = (t1,t2,t3) => ctx =>
-    if (subtype(typeof(t1)(ctx))(TyBool)) {
-      join(typeof(t2)(ctx))(this(t3)(ctx))
+    override def tmIf = x => ctx =>
+    if (subtype(typeof(x.t1)(ctx))(TyBool)) {
+      join(typeof(x.t2)(ctx))(this(x.t3)(ctx))
     } else {
-      throw new Exception("guard of conditional " + t1 + " is not a boolean")
+      throw new Exception("guard of conditional " + x.t1 + " is not a boolean")
     }
   }
 }

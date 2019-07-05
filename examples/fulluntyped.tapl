@@ -12,11 +12,11 @@ x = true;
 x;
 if x then false else x; 
 
-lambda x. x;
-(lambda x. x) (lambda x. x x); 
+\x. x;
+(\x. x) (\x. x x);
 
-{x=lambda x.x, y=(lambda x.x)(lambda x.x)}; 
-{x=lambda x.x, y=(lambda x.x)(lambda x.x)}.x; 
+{x=\x.x, y=(\x.x)(\x.x)};
+{x=\x.x, y=(\x.x)(\x.x)}.x;
 
 "hello";
 

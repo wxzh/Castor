@@ -10,17 +10,17 @@ import util.Print._
   case class Bind(n: String, b: Binding) extends Command
 
   @adt trait Binding {
-    def NameBind: Binding
+    case object NameBind
   }
 
   @default(Binding) trait BindingShift {
     type OBinding = Int => Binding
-    def otherwise = b => _ => b
+    def binding = b => _ => b
   }
 
   @default(Binding) trait PBinding {
     type OBinding = Context => Document
-    def otherwise = _ => _ => empty
+    def binding = _ => _ => empty
   }
 
   case class Context(l: List[(String, Binding)] = List()) {
@@ -70,32 +70,32 @@ import util.Print._
 
   @default(Tm) trait PtmTerm {
     type OTm = (Boolean, Context) => Document
-    def otherwise = ptmAppTerm(_)
+    def tm = ptmAppTerm(_)
   }
 
   @default(Tm) trait PtmAppTerm {
     type OTm = (Boolean, Context) => Document
-    override def otherwise = ptmATerm(_)
+    override def tm = ptmATerm(_)
   }
 
   @default(Tm) trait PtmATerm {
     type OTm = (Boolean, Context) => Document
-    override def otherwise = t => (_,ctx) => "(" :: ptmTerm(t)(true,ctx) :: ")"
+    override def tm = t => (_,ctx) => "(" :: ptmTerm(t)(true,ctx) :: ")"
   }
 
   @default(Tm) trait IsVal {
     type OTm = Boolean
-    def otherwise = _ => false
+    def tm = _ => false
   }
 
   @default(Tm) trait Eval1 {
     type OTm = Context => Tm
-    def otherwise = t => throw NoRuleApplies(t)
+    def tm = t => throw NoRuleApplies(t)
   }
 
   @default(Tm) trait TmMap {
     type OTm = ((Int,Int,Int) => Tm, Int) => Tm
-    def otherwise = t => (_,_) => t
+    def tm = t => (_,_) => t
   }
 
   def eval(ctx: Context, t: Tm): Tm =
@@ -114,12 +114,12 @@ import util.Print._
 
   @default(Ty) trait PtyType {
     type OTy = (Boolean,Context) => Document
-    def otherwise = ptyAType(_)
+    def ty = ptyAType(_)
   }
 
   @default(Ty) trait PtyAType {
     type OTy = (Boolean,Context) => Document
-    def otherwise = ty => "(" :: ptyType(ty)(_,_) :: ")"
+    def ty = ty => "(" :: ptyType(ty)(_,_) :: ")"
   }
 
   def ptyTy(ty: Ty, ctx: Context) = ptyType(ty)(true,ctx)
@@ -144,17 +144,17 @@ import util.Print._
 @ops(Eval1, IsVal, PtmATerm, PtmAppTerm, PtmTerm, TmMap, PtyType, PtyAType, TyEqv, Subtype, Typeof)
 trait VarBinding extends Binding with Type {
   @adt trait Binding extends super.Binding {
-    def VarBind: Ty => Binding
+    case class VarBind(ty: Ty)
   }
 
   @default(Binding) trait GetTypeFromBind {
     type OBinding = Ty
-    override def varBind = identity
-    def otherwise = _ => throw new Exception("Wrong kind of binding")
+    override def varBind = _.ty
+    def binding = _ => throw new Exception("Wrong kind of binding")
   }
 
   @visit(Binding) trait PBinding extends super.PBinding {
-    def varBind = ty => ctx => ": " :: ptyType(ty)(true,ctx)
+    def varBind = x => ctx => ": " :: ptyType(x.ty)(true,ctx)
   }
 
   @default(Binding) trait BindingShift extends super.BindingShift
@@ -166,25 +166,25 @@ trait VarBinding extends Binding with Type {
 @ops(PtmTerm,PtmATerm,PtmAppTerm,IsVal,TmMap)
 trait TmAbbBinding extends Binding with VarApp {
   @adt trait Binding extends super.Binding {
-    def TmAbbBind: Tm => Binding
+    case class TmAbbBind(t: Tm)
   }
 
   @visit(Tm) trait Eval1 extends super.Eval1 {
-    override def tmVar = (x,_) => ctx =>
-      ctx.getBinding(x) match {
+    override def tmVar = x => ctx =>
+      ctx.getBinding(x.i) match {
         case TmAbbBind(t) => t
         case _ => throw NoRuleApplies()
       }
   }
 
   @visit(Binding) trait BindingShift extends super.BindingShift {
-    def tmAbbBind = t => d =>
-      TmAbbBind(termShift(d, t))
+    def tmAbbBind = x => d =>
+      TmAbbBind(termShift(d, x.t))
   }
 
   @visit(Binding) trait PBinding extends super.PBinding {
-    def tmAbbBind = tm => ctx =>
-      "= " :: ptm(tm,ctx)
+    def tmAbbBind = x => ctx =>
+      "= " :: ptm(x.t,ctx)
   }
 
   def evalBinding(ctx: Context, bind: Binding): Binding = bind match {
@@ -201,14 +201,14 @@ trait TmAbbBinding extends Binding with VarApp {
 trait TyVarBinding extends Typed with VarBinding {
 
   @adt trait Binding extends super.Binding {
-    def TyVarBind: Binding
-    def TmAbbBind: (Tm, Option[Ty]) => Binding
-    def TyAbbBind: Ty => Binding
+    case object TyVarBind
+    case class TmAbbBind(t: Tm, ty: Option[Ty])
+    case class TyAbbBind(ty: Ty)
   }
 
   @visit(Tm) trait Eval1 extends super.Eval1 {
-    override def tmVar = (n,_) => ctx =>
-      ctx.getBinding(n) match {
+    override def tmVar = x => ctx =>
+      ctx.getBinding(x.i) match {
         case TmAbbBind(t1, _) => t1
         case _ => throw new NoRuleApplies
       }
@@ -218,41 +218,41 @@ trait TyVarBinding extends Typed with VarBinding {
     def tyVarBind = ctx =>
       empty
 
-    def tyAbbBind = ty => ctx =>
-      "= " :: ptyTy(ty,ctx)
+    def tyAbbBind = x => ctx =>
+      "= " :: ptyTy(x.ty,ctx)
 
-    def tmAbbBind = (t, tyT) => ctx =>
-      "= " :: ptm(t,ctx)
+    def tmAbbBind = x => ctx =>
+      "= " :: ptm(x.t,ctx)
   }
 
   @visit(Binding) trait PBindingTy extends PBinding {
     override def tyAbbBind = _ => _ =>
       ":: *"
     override def tmAbbBind = {
-      case (t, Some(ty)) => ctx =>
+      case TmAbbBind(t, Some(ty)) => ctx =>
         ": " :: ptyTy(ty,ctx)
-      case (t, None) => ctx =>
+      case TmAbbBind(t, None) => ctx =>
         ": " :: ptyTy(typeof(t)(ctx),ctx)
     }
   }
 
   @default(Binding) trait GetTypeFromBind extends super.GetTypeFromBind {
     override def tmAbbBind = {
-      case (_, Some(ty)) => ty
-      case (_, None)     => throw new Exception("No type recorder for variable")
+      case TmAbbBind(_, Some(ty)) => ty
+      case TmAbbBind(_, None)     => throw new Exception("No type recorder for variable")
     }
   }
 
   @default(Binding) trait BindingShift extends super.BindingShift {
-    override def tmAbbBind = (t, ty) => d => TmAbbBind(termShift(d,t), ty)
+    override def tmAbbBind = x => d => TmAbbBind(termShift(d,x.t), x.ty)
   }
 
   @default(Binding) trait CheckBinding {
     type OBinding = Context => Binding
-    def otherwise = bind => _ => bind
+    def binding = bind => _ => bind
     override def tmAbbBind = {
-      case (t, None) => ctx => TmAbbBind(t, Some(typeof(t)(ctx)))
-      case (t, Some(ty)) => ctx => {
+      case TmAbbBind(t, None) => ctx => TmAbbBind(t, Some(typeof(t)(ctx)))
+      case TmAbbBind(t, Some(ty)) => ctx => {
         val ty1 = typeof(t)(ctx)
         if (tyEqv(ty)(ty1))
           TmAbbBind(t,Some(ty))

@@ -1,5 +1,6 @@
 package examples
 
+object NoRuleApplies extends RuntimeException
 object Visitor {
 
 abstract class Tm {
@@ -164,11 +165,11 @@ trait Term {
     def apply(t: Tm) = t.accept(this)
   }
   trait TmDefault extends TmVisit { _: TmV =>
-    def otherwise: Tm => OTm
+    def tm: Tm => OTm
   }
   trait Eval1 extends TmDefault { _: TmV =>
     type OTm = Tm
-    def otherwise = _ => throw NoRuleApplies
+    def tm = _ => throw NoRuleApplies
   }
   val eval1: Eval1
 }
@@ -189,9 +190,9 @@ trait Nat extends Term {
     def tmPred: Tm => OTm
   }
   trait TmDefault extends TmVisit with super.TmDefault { _: TmV =>
-    def tmZero = otherwise(TmZero)
-    def tmSucc = t => otherwise(TmSucc(t))
-    def tmPred = t => otherwise(TmPred(t))
+    def tmZero = tm(TmZero)
+    def tmSucc = t => tm(TmSucc(t))
+    def tmPred = t => tm(TmPred(t))
   }
   def nv(t: Tm): Boolean = t match {
     case TmZero => true
@@ -202,6 +203,7 @@ trait Nat extends Term {
     override def tmSucc = t => TmSucc(this(t))
     override def tmPred = {
       case TmZero => TmZero
+      case TmSucc(t) if nv(t) => t
       case TmSucc(t) if nv(t) => t
       case t => TmPred(this(t))
     }

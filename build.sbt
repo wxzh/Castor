@@ -2,6 +2,7 @@ scalaVersion in ThisBuild := "2.12.3"
 
 lazy val localScalacOpts = Seq(
   "-language:higherKinds",
+  "-language:reflectiveCalls",
   "-feature",
   "-deprecation")
 
@@ -31,6 +32,20 @@ lazy val tapl = project.settings(
 
   libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
   libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.3" % "test"
+).dependsOn(macros)
+
+lazy val uml = project.settings(
+  metaMacroSettings,
+
+  scalacOptions ++= localScalacOpts,
+  libraryDependencies ++= Seq(
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
+    "com.storm-enroute" %% "scalameter" % "0.8.2" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.3" % "test"
+  ),
+  testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+  parallelExecution in Test := false,
+  logBuffered := false
 ).dependsOn(macros)
 
 lazy val comparison = project.settings(

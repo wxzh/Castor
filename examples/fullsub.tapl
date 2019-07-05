@@ -1,19 +1,19 @@
 /* Examples for testing */
 
- lambda x:Top. x;
-  (lambda x:Top. x) (lambda x:Top. x);
- (lambda x:Top->Top. x) (lambda x:Top. x);
+ \x:Top. x;
+  (\x:Top. x) (\x:Top. x);
+ (\x:Top->Top. x) (\x:Top. x);
  
 
-(lambda r:{x:Top->Top}. r.x r.x) 
-  {x=lambda z:Top.z, y=lambda z:Top.z}; 
+(\r:{x:Top->Top}. r.x r.x)
+  {x=\z:Top.z, y=\z:Top.z};
 
 
 "hello";
 
 unit;
 
-//lambda x:A. x;
+//\x:A. x;
 
 let x=true in x;
 
@@ -25,13 +25,13 @@ let x=true in x;
 
 if true then {x=true,y=false,a=false} else {y=false,x={},b=false};
 
-lambda x:Bool. x;
-(lambda x:Bool->Bool. if x false then true else false) 
-  (lambda x:Bool. if x then false else true); 
+\x:Bool. x;
+(\x:Bool->Bool. if x false then true else false)
+  (\x:Bool. if x then false else true);
 
-lambda x:Nat. succ x;
-(lambda x:Nat. succ (succ x)) (succ 0); 
+\x:Nat. succ x;
+(\x:Nat. succ (succ x)) (succ 0);
 
 //T = Nat->Nat;
-//lambda f:T. lambda x:Nat. f (f x);
-lambda f:Nat->Nat. lambda x:Nat. f (f x);
+//\f:T. \x:Nat. f (f x);
+\f:Nat->Nat. \x:Nat. f (f x);

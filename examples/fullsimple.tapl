@@ -23,5 +23,5 @@ in
 (\f: Unit->Nat. if iszero (f unit) then "zero" else "not zero") (\u: Unit. 0);
 let x = {a = 2, b = 3} in let y = succ x.a in y;
 (fix (\eo: {even: Nat -> Bool, odd: Nat -> Bool}.{even = \x: Nat. if iszero x then true else eo.odd (pred x), odd = \x: Nat. if iszero x then false else eo.even (pred x)})).even 2;
-(\v: <l:Nat, r:Nat>. case v of <l=lv> ==> "left" | <r=rv> ==> "right") (<r = 5> as <l:Nat, r:Nat>);
-((\r: {x:Nat, y:Bool}. \v: <l:Nat, r:Nat>. case v of <l=lv> ==> if r.y then lv else r.x | <r=rv> ==> rv) {x = 3, y = false}) (<l = 5> as <l:Nat, r:Nat>);
+(\v: <l:Nat, r:Nat>. case v of <l=lv> => "left" | <r=rv> => "right") (<r = 5> as <l:Nat, r:Nat>);
+((\r: {x:Nat, y:Bool}. \v: <l:Nat, r:Nat>. case v of <l=lv> => if r.y then lv else r.x | <r=rv> => rv) {x = 3, y = false}) (<l = 5> as <l:Nat, r:Nat>);

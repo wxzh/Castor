@@ -20,7 +20,7 @@ trait SimpleBool extends Typed with TyBool {
 
   @visit(Ty) trait PtyType extends super[Typed].PtyType with super[TyBool].PtyType
   @visit(Ty) trait PtyArrowType extends super[Typed].PtyArrowType {
-    def tyBool = otherwise(TyBool)
+    def tyBool = ty(TyBool)
   }
   @visit(Ty) trait PtyAType extends super[Typed].PtyAType with super[TyBool].PtyAType
   @visit(Ty) trait TyEqv extends super[Typed].TyEqv with super[TyBool].TyEqv

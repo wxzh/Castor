@@ -10,26 +10,26 @@ import util.Document
 @ops(BindingShift,PBinding,PBindingTy,GetTypeFromBind,CheckBinding)
 trait MoreExt extends Extension {
   @adt trait Tm extends super.Tm {
-    def TmFix: Tm => Tm
-    def TmUnit: Tm
-    def TmAscribe: (Tm,Ty) => Tm
-    def TmInert: Ty => Tm
+    case class TmFix(t: Tm)
+    case object TmUnit
+    case class TmAscribe(t: Tm, ty: Ty)
+    case class TmInert(ty: Ty)
   }
 
   @adt trait Ty extends super.Ty {
-    def TyUnit: Ty
+    case object TyUnit
   }
 
   @visit(Tm) trait TmMap extends super.TmMap {
-    def tmFix = t => (onvar,c) => TmFix(this(t)(onvar,c))
-    def tmAscribe = (t,ty) => (onvar,c) => TmAscribe(this(t)(onvar,c),ty)
+    def tmFix = x => (onvar,c) => TmFix(this(x.t)(onvar,c))
+    def tmAscribe = x => (onvar,c) => TmAscribe(this(x.t)(onvar,c),x.ty)
     def tmUnit = (_,_) => TmUnit
-    def tmInert = ty => (_,_) => TmInert(ty)
+    def tmInert = x => (_,_) => x
   }
 
   @default(Tm) trait PtmTerm extends super.PtmTerm {
-    override def tmFix = t => (_,ctx) =>
-      g2("fix " :: this(t)(false,ctx))
+    override def tmFix = x => (_,ctx) =>
+      g2("fix " :: this(x.t)(false,ctx))
     override def tmAbs = super.tmAbs
     override def tmLet = super.tmLet
   }
@@ -38,61 +38,61 @@ trait MoreExt extends Extension {
 
   @default(Tm) trait PtmATerm extends super.PtmATerm {
     override def tmUnit = (_,_) => "unit"
-    override def tmInert = tyT => (_,ctx) =>
-      "inert[" :: ptyType(tyT)(false, ctx) :: "]"
+    override def tmInert = x => (_,ctx) =>
+      "inert[" :: ptyType(x.ty)(false, ctx) :: "]"
     override def tmString = super.tmString
   }
 
   @default(Tm) trait PtmPathTerm extends super.PtmPathTerm {
-    override def otherwise = ptmAscribeTerm(_)
+    override def tm = ptmAscribeTerm(_)
   }
 
   @default(Tm) trait PtmAscribeTerm {
     type OTm = (Boolean,Context) => Document
-    def otherwise = ptmATerm(_)
-    override def tmAscribe = (t, ty) => (outer,ctx) =>
-      g0(ptmAppTerm(t)(false,ctx) :/: "as " :: ptyType(ty)(false,ctx))
+    def tm = ptmATerm(_)
+    override def tmAscribe = x => (outer,ctx) =>
+      g0(ptmAppTerm(x.t)(false,ctx) :/: "as " :: ptyType(x.ty)(false,ctx))
   }
 
   @visit(Tm) trait Eval1 extends super.Eval1 {
-    def tmFix = t => ctx =>
-      if (isVal(t)) {
-        t match {
+    def tmFix = x => ctx =>
+      if (isVal(x.t)) {
+        x.t match {
           case TmAbs(_, _, t12) =>
-            termSubstTop(TmFix(t), t12)
+            termSubstTop(x, t12)
           case _ => throw NoRuleApplies()
         }
       }
       else
-        TmFix(this (t)(ctx))
-    def tmAscribe = (t,ty) => ctx =>
-      if (isVal(t)) t
-      else TmAscribe(this(t)(ctx),ty)
-    def tmUnit = otherwise(TmUnit)
-    def tmInert = ty => otherwise(TmInert(ty))
+        TmFix(this(x.t)(ctx))
+    def tmAscribe = x => ctx =>
+      if (isVal(x.t)) x.t
+      else TmAscribe(this(x.t)(ctx),x.ty)
+    def tmUnit = tm(TmUnit)
+    def tmInert = tm
 
   }
 
   @visit(Tm) trait Typeof extends super.Typeof {
-    def tmFix = t => ctx => {
-      this(t)(ctx) match {
+    def tmFix = x => ctx => {
+      this(x.t)(ctx) match {
         case TyArr(ty1,ty2) =>
           if (ty1 == ty2)
             ty2
           else {
-            throw new Exception(s"result of body not compatible with domain $t: $ty2 != $ty1")
+            throw new Exception(s"result of body not compatible with domain ${x.t}: $ty2 != $ty1")
           }
         case _ =>
-          throw new Exception("error type expected in " + t)
+          throw new Exception("error type expected in " + x.t)
       }
     }
     def tmUnit = _ => TyUnit
-    def tmInert = ty => _ => ty
-    def tmAscribe = (t,ty) => ctx =>
-      if (subtype(this(t)(ctx))(ty))
-        ty
+    def tmInert = x => _ => x.ty
+    def tmAscribe = x => ctx =>
+      if (subtype(this(x.t)(ctx))(x.ty))
+        x.ty
       else
-        throw new Exception("body of as-term doesn't have the expected type in " + t)
+        throw new Exception("body of as-term doesn't have the expected type in " + x.t)
 
   }
 
@@ -114,7 +114,7 @@ trait MoreExt extends Extension {
 
   @visit(Tm) trait IsVal extends super.IsVal {
     def tmUnit = true
-    def tmAscribe = (_,_) => false
+    def tmAscribe = _ => false
     def tmFix = _ => false
     def tmInert = _ => false
   }

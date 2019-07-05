@@ -8,13 +8,13 @@ import util.Print._
 @ops(BindingShift, PBinding)
 @family trait VarApp extends Binding with Term {
   @adt trait Tm extends super.Tm {
-    def TmVar: (Int, Int) => Tm
-    def TmApp: (Tm, Tm) => Tm
+    case class TmVar(i: Int, n: Int)
+    case class TmApp(t1: Tm, t2: Tm)
   }
 
   @visit(Tm) trait TmMap extends super.TmMap {
-    def tmVar = (x, n) => (onvar,c) => onvar(c, x, n)
-    def tmApp = (t1, t2) => (onvar,c) => TmApp(this (t1)(onvar,c), this (t2)(onvar,c))
+    def tmVar = x => (onvar,c) => onvar(c, x.i, x.n)
+    def tmApp = x => (onvar,c) => TmApp(this(x.t1)(onvar,c), this(x.t2)(onvar,c))
   }
 
   def termShiftAbove(d: Int, t: Tm, c: Int) =
@@ -37,14 +37,14 @@ import util.Print._
   @default(Tm) trait PtmTerm extends super.PtmTerm
 
   @default(Tm) trait PtmAppTerm extends super.PtmAppTerm {
-    override def tmApp = (t1, t2) => (_, ctx) =>
-      g2(this (t1)(false, ctx) :/: ptmATerm(t2)(false, ctx))
+    override def tmApp = x => (_, ctx) =>
+      g2(this(x.t1)(false, ctx) :/: ptmATerm(x.t2)(false, ctx))
   }
 
   @default(Tm) trait PtmATerm extends super.PtmATerm {
-    override def tmVar = (x, n) => (_, ctx) =>
-      if (ctx.length == n) ctx.index2Name(x)
-      else text("[bad index: " + x + "/" + n + " in {" + ctx.l.mkString(", ") + "}]")
+    override def tmVar = x => (_, ctx) =>
+      if (ctx.length == x.n) ctx.index2Name(x.i)
+      else text("[bad index: " + x.i + "/" + x.n + " in {" + ctx.l.mkString(", ") + "}]")
   }
 
   @default(Tm) trait IsVal extends super.IsVal

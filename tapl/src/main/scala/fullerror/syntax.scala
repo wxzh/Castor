@@ -12,21 +12,24 @@ import examples._
 trait FullError extends TyBool with TyVarBinding with BotJoinMeet {
 
   @adt trait Tm extends super[TyBool].Tm with super[BotJoinMeet].Tm {
-    def TmTry: (Tm,Tm) => Tm
-    def TmError: Tm
+    case class TmTry(t1: Tm, t2: Tm)
+    case object TmError
   }
 
   @adt trait Ty extends super[TyBool].Ty with super[BotJoinMeet].Ty
 
 
   @visit(Tm) trait TmMap extends super[TyBool].TmMap with super[BotJoinMeet].TmMap {
-    def tmTry = (t1,t2) => (onvar,c) => TmTry(this(t1)(onvar,c),this(t2)(onvar,c))
+    def tmTry = x => (onvar,c) => TmTry(this(x.t1)(onvar,c),this(x.t2)(onvar,c))
     def tmError = (_,_) => TmError
   }
 
   @default(Tm) trait PtmTerm extends super[TyBool].PtmTerm with super[BotJoinMeet].PtmTerm {
-    override def tmTry = (t1,t2) => (outer,ctx) =>
-      g0("try " :: this(t1)(false, ctx) :/: "with " :: this(t1)(false, ctx))
+    override def tmTry = {
+      case TmTry(t1,t2) => (outer,ctx) => g0("try " :: this(t1)(false, ctx) :/: "with " :: this(t1)(false, ctx)) }
+//TODO: why the following lines do not type-check?
+//    x => (outer,ctx) =>
+//     g0("try " :: this (x.t1)(false, ctx) :/: "with " :: this (x.t1)(false, ctx))
 
     override def tmAbs = super.tmAbs
   }
@@ -40,37 +43,37 @@ trait FullError extends TyBool with TyVarBinding with BotJoinMeet {
 
   @default(Tm) trait Eval1 extends super[TyBool].Eval1 with super[TyVarBinding].Eval1 with super[BotJoinMeet].Eval1 {
     override def tmApp = {
-      case (TmError, t2) => _ =>
+      case TmApp(TmError, t2) => _ =>
         TmError
-      case (v1, TmError) if isVal(v1) => _ =>
+      case TmApp(v1, TmError) if isVal(v1) => _ =>
         TmError
-      case (t1,t2) => ctx =>
-        super.tmApp(t1,t2)(ctx)
+      case x => ctx =>
+        super.tmApp(x)(ctx)
     }
     override def tmIf = {
-      case (TmError,t2,t3) => _ =>
+      case TmIf(TmError,t2,t3) => _ =>
         TmError
-      case (t1,t2,t3) => ctx =>
-        super.tmIf(t1,t2,t3)(ctx)
+      case x => ctx =>
+        super.tmIf(x)(ctx)
     }
   }
 
   @visit(Tm) trait IsVal extends super[TyBool].IsVal with super[BotJoinMeet].IsVal {
-    def tmTry = (t1,t2) => false
+    def tmTry = _ => false
     def tmError = false
   }
 
   @visit(Tm) trait Typeof extends super[TyBool].Typeof with super[BotJoinMeet].Typeof {
-    override def tmIf = (t1,t2,t3) => ctx =>
-      if (subtype(this(t1)(ctx))(TyBool)) {
-        join(this(t2)(ctx))(this(t3)(ctx))
+    override def tmIf = x => ctx =>
+      if (subtype(this(x.t1)(ctx))(TyBool)) {
+        join(this(x.t2)(ctx))(this(x.t3)(ctx))
       } else {
-        throw new Exception("guard of conditional " + TmIf(t1,t2,t3) + " is not a boolean")
+        throw new Exception("guard of conditional " + x + " is not a boolean")
       }
     def tmError = _ =>
       TyBot
-    def tmTry = (t1,t2) => ctx =>
-      join(this(t1)(ctx))(this(t2)(ctx))
+    def tmTry = x => ctx =>
+      join(this(x.t1)(ctx))(this(x.t2)(ctx))
   }
 
   @visit(Ty) trait PtyType extends super[TyBool].PtyType with super[BotJoinMeet].PtyType

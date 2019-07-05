@@ -10,26 +10,26 @@ import util.Print._
 @family trait Nat extends Term {
 
   @adt trait Tm extends super.Tm {
-    def TmZero: Tm
-    def TmSucc: Tm => Tm
-    def TmPred: Tm => Tm
+    case object TmZero
+    case class TmSucc(t: Tm)
+    case class TmPred(t: Tm)
   }
 
   @default(Tm) trait TmMap extends super.TmMap {
-    override def tmSucc = t => (onvar,c) => TmSucc(this(t)(onvar,c))
-    override def tmPred = t => (onvar,c) => TmPred(this(t)(onvar,c))
+    override def tmSucc = x => (onvar,c) => TmSucc(this(x.t)(onvar,c))
+    override def tmPred = x => (onvar,c) => TmPred(this(x.t)(onvar,c))
   }
 
   @default(Tm) trait PtmTerm extends super.PtmTerm
 
   @default(Tm) trait PtmAppTerm extends super.PtmAppTerm {
-    override def tmPred = t => (_,ctx) =>
-      "pred " :: ptmATerm(t)(false,ctx)
+    override def tmPred = x => (_,ctx) =>
+      "pred " :: ptmATerm(x.t)(false,ctx)
   }
 
   @default(Tm) trait PtmATerm extends super.PtmATerm {
     override def tmZero = (_,_) => "0"
-    override def tmSucc = t => (_,ctx) => {
+    override def tmSucc = x => (_,ctx) => {
       def pf(i: Int, t: Tm): Document = t match {
         case TmZero =>
           i.toString
@@ -38,7 +38,7 @@ import util.Print._
         case _ =>
           "(succ " :: this(t)(false,ctx) :: ")"
       }
-      pf(1, t)
+      pf(1, x.t)
     }
   }
 
@@ -53,12 +53,12 @@ import util.Print._
   }
 
   @default(Tm) trait Eval1 extends super.Eval1 {
-    override def tmSucc = t => ctx =>
-      TmSucc(this(t)(ctx))
+    override def tmSucc = x => ctx =>
+      TmSucc(this(x.t)(ctx))
     override def tmPred = {
-      case TmZero => _ => TmZero
-      case TmSucc(t) if isNumericVal(t) => _ => t
-      case t => ctx => TmPred(this(t)(ctx))
+      case TmPred(TmZero) => _ => TmZero
+      case TmPred(TmSucc(t)) if isNumericVal(t) => _ => t
+      case TmPred(t) => ctx => TmPred(this(t)(ctx))
     }
   }
 }
@@ -68,7 +68,7 @@ import util.Print._
 @ops(BindingShift, PBinding, Eval1, IsVal, PtmTerm, PtmATerm, PtmAppTerm, TmMap)
 trait TyNat extends Type with Nat {
   @adt trait Ty extends super.Ty {
-    def TyNat: Ty
+    case object TyNat
   }
 
   @default(Ty) trait PtyType extends super.PtyType
@@ -79,17 +79,17 @@ trait TyNat extends Type with Nat {
 
   @visit(Tm) trait Typeof extends super.Typeof {
     def tmZero = _ => TyNat
-    def tmSucc = t => ctx =>
-      if (this(t)(ctx) == TyNat) {
+    def tmSucc = x => ctx =>
+      if (this(x.t)(ctx) == TyNat) {
         TyNat
       } else {
-        throw new Exception("argument of Succ: is not a number: " + t)
+        throw new Exception("argument of Succ: is not a number: " + x.t)
       }
-    def tmPred = t => ctx =>
-      if (this(t)(ctx) == TyNat) {
+    def tmPred = x => ctx =>
+      if (this(x.t)(ctx) == TyNat) {
         TyNat
       } else {
-        throw new Exception("argument of Pred: is not a number: " + t)
+        throw new Exception("argument of Pred: is not a number: " + x.t)
       }
   }
 

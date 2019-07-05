@@ -8,7 +8,7 @@ import util.Print._
 @family
 trait Top extends Typed {
   @adt trait Ty extends super.Ty {
-    def TyTop: Ty
+    case object TyTop
   }
 
   @default(Ty) trait PtyType extends super.PtyType
@@ -18,9 +18,9 @@ trait Top extends Typed {
   }
 
   @visit(Tm) trait Typeof extends super.Typeof {
-    override def tmApp = (t1, t2) => ctx => {
-      val ty1 = this(t1)(ctx)
-      val ty2 = this(t2)(ctx)
+    override def tmApp = x => ctx => {
+      val ty1 = this(x.t1)(ctx)
+      val ty2 = this(x.t2)(ctx)
       ty1 match {
         case TyArr(ty11,ty12) =>
           if (subtype(ty2)(ty11)) ty12
@@ -51,7 +51,7 @@ trait TopJoinMeet extends Top {
   @default(Ty) trait Meet {
     type OTy = Ty => Ty
 
-    def otherwise = _ => _ => throw NoRuleApplies()
+    def ty = _ => _ => throw NoRuleApplies()
     def default: Ty = throw NoRuleApplies()
     override def apply(ty1: Ty) = ty2 => {
       if (subtype(ty1)(ty2)) {
@@ -64,14 +64,14 @@ trait TopJoinMeet extends Top {
       }
     }
 
-    override def tyArr = (tyS1,tyS2) => {
-      case TyArr(tyT1,tyT2) => TyArr(meet(tyS1)(tyT1), this(tyS2)(tyT2))
+    override def tyArr = x => {
+      case TyArr(ty1,ty2) => TyArr(meet(x.ty1)(ty1), this(x.ty2)(ty2))
     }
   }
 
   @default(Ty) trait Join {
     type OTy = Ty => Ty
-    def otherwise = _ => _ => throw new MatchError()
+    def ty = _ => _ => throw new MatchError()
     override def apply(ty1: Ty) = ty2 => {
       if (subtype(ty1)(ty2)) {
         ty2
@@ -82,8 +82,8 @@ trait TopJoinMeet extends Top {
         catch { case _: MatchError => TyTop }
       }
     }
-    override def tyArr = (tyS1,tyS2) => {
-      case TyArr(tyT1,tyT2) => TyArr(join(tyS1)(tyT1), this(tyS2)(tyT2))
+    override def tyArr = x => {
+      case TyArr(ty1,ty2) => TyArr(join(x.ty1)(ty1), this(x.ty2)(ty2))
     }
   }
 }

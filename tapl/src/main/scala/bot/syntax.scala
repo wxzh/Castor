@@ -9,7 +9,7 @@ import examples._
 @family
 trait Bot extends Top {
   @adt trait Ty extends super.Ty {
-    def TyBot: Ty
+    case object TyBot
   }
 
   @default(Ty) trait PtyType extends super.PtyType
@@ -29,10 +29,10 @@ trait Bot extends Top {
   }
 
   @visit(Tm) trait Typeof extends super.Typeof {
-    override def tmApp = (t1,t2) => ctx => {
-      this(t1)(ctx) match {
+    override def tmApp = x => ctx => {
+      this(x.t1)(ctx) match {
         case TyBot => TyBot
-        case _ => super.tmApp(t1, t2)(ctx)
+        case _ => super.tmApp(x)(ctx)
       }
     }
   }

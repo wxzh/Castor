@@ -13,10 +13,10 @@ trait RcdSubBot extends Bot with TyRcd {
   @adt trait Ty extends super[Bot].Ty with super[TyRcd].Ty
 
   @visit(Tm) trait Typeof extends super[Bot].Typeof with super[TyRcd].Typeof {
-    override def tmProj = (t,l) => ctx =>
-      this(t)(ctx) match {
+    override def tmProj = x => ctx =>
+      this(x.t)(ctx) match {
         case TyBot => TyBot
-        case _ => super.tmProj(t,l)(ctx)
+        case _ => super.tmProj(x)(ctx)
       }
   }
 

@@ -12,11 +12,11 @@ trait TyArith extends TyNat with TyBool with Arith {
   @adt trait Ty extends super[TyNat].Ty with super[TyBool].Ty
 
   @visit(Tm) trait Typeof extends super[TyNat].Typeof with super[TyBool].Typeof {
-    def tmIsZero = t => ctx =>
-      if (this(t)(ctx) == TyNat) {
+    def tmIsZero = x => ctx =>
+      if (this(x.t)(ctx) == TyNat) {
         TyBool
       } else {
-        throw new Exception("argument of IsZero: is not a number: " + TmIsZero(t))
+        throw new Exception("argument of IsZero: is not a number: " + x)
       }
   }
   @visit(Ty) trait PtyType extends super[TyNat].PtyType with super[TyBool].PtyType
