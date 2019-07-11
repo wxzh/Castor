@@ -23,13 +23,13 @@ class TestPerformance extends FunSuite {
   }
 
 
- test("variant1") {
-   benchmark(Variant1.activity, executeActivity)
- }
- test("variant2") {
-   benchmark(Variant2.activity, executeActivity)
- }
- test("variant3") {
-   benchmark(Variant3.activity, executeActivity)
- }
+  test("variant1") {
+    benchmark(Variant1.activity, executeActivity)
+  }
+  test("variant2") {
+    benchmark(Variant2.activity, executeActivity)
+  }
+  test("variant3") {
+    benchmark(Variant3.activity, executeActivity)
+  }
 }

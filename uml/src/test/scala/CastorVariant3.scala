@@ -1,4 +1,4 @@
-import uml.UMLLang._
+import uml.UmlLang._
 
 object CastorVariant3 {
 val one = new IntegerVariable("one",new IntegerValue(1))

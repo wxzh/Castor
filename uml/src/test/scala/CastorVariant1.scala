@@ -1,4 +1,4 @@
-import uml.UMLLang._
+import uml.UmlLang._
 
 object CastorVariant1 {
     val initialNode = new InitialNode("initialNode")

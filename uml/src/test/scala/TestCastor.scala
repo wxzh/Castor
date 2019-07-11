@@ -1,7 +1,7 @@
 import uml._
 
 import org.scalatest._
-import uml.UMLLang._
+import uml.UmlLang._
 import collection.mutable._
 
 class TestCastor extends FunSuite {
@@ -12,7 +12,7 @@ class TestCastor extends FunSuite {
     }))
 
   def executeActivity(a: Activity, inputs: ListBuffer[InputValue]): Trace = {
-    a.main(inputs)
+    main(a,inputs)
     a.trace
   }
 

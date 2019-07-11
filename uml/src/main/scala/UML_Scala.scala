@@ -33,7 +33,7 @@ object Original {
       fireNode(getInitialNode)
     }
     def fireNode(node: ActivityNode) {
-      //println("fire node " + node.name)
+//      println("fire node " + node.name)
       val tokens = node.takeOffedTokens
       node.fire(tokens)
       trace.executedNodes += node
@@ -154,16 +154,11 @@ object Original {
 
 		  val result =
 		  operator match {
-			  case EQUALS =>
-				  operandValue1 == operandValue2
-			  case GREATER =>
-				  operandValue1 > operandValue2
-			  case GREATER_EQUALS =>
-				  operandValue1 >= operandValue2
-			  case SMALLER =>
-				  operandValue1 < operandValue2
-			  case SMALLER_EQUALS =>
-				  operandValue1 <= operandValue2
+			  case EQUALS => operandValue1 == operandValue2
+			  case GREATER => operandValue1 > operandValue2
+			  case GREATER_EQUALS => operandValue1 >= operandValue2
+			  case SMALLER => operandValue1 < operandValue2
+			  case SMALLER_EQUALS => operandValue1 <= operandValue2
 		  }
 		 val resultValue = new BooleanValue(result)
 		 assignee.currentValue = resultValue
@@ -445,9 +440,9 @@ object Original {
   class Offer {
     val offeredTokens = ListBuffer[Token]()
     def hasTokens = {
-      //println("before # of tokens: " + offeredTokens.size)
+//      println("before # of tokens: " + offeredTokens.size)
       removeWithdrawnTokens
-      //println("after # of tokens: " + offeredTokens.size)
+//      println("after # of tokens: " + offeredTokens.size)
       offeredTokens.size > 0
     }
     def removeWithdrawnTokens {

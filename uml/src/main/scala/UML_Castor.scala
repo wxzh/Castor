@@ -3,7 +3,7 @@ package uml
 import examples._
 import collection.mutable._
 
-@family trait ExprLang {
+@family trait ExprModel {
   @adt trait Value {
     class IntegerValue(val value: Int)
     class BooleanValue(val value: Boolean)
@@ -69,7 +69,11 @@ import collection.mutable._
     object AND
     object OR
   }
+}
 
+@family
+@adts(IntegerCalculationOperator,IntegerComparisonOperator,BooleanUnaryOperator,BooleanBinaryOperator,Expression,Value,Variable)
+trait ExprLang extends ExprModel {
   @visit(IntegerCalculationOperator,IntegerComparisonOperator,BooleanUnaryOperator,BooleanBinaryOperator,Expression)
   trait Execute {
     type OExpression = Unit
@@ -129,257 +133,36 @@ import collection.mutable._
   }
 }
 
-@family @adts(Expression,BooleanUnaryOperator,BooleanBinaryOperator,IntegerCalculationOperator,IntegerComparisonOperator) @ops(Execute)
-trait UMLLang extends ExprLang {
+@family
+//@adts(IntegerCalculationOperator,IntegerComparisonOperator,BooleanUnaryOperator,BooleanBinaryOperator,Expression,Value,Variable)
+trait UmlModel extends ExprModel {
   trait Activity {
     val name: String
     var nodes = ListBuffer[ActivityNode]()
-    var edges = ListBuffer[ActivityEdge]()
+    var edges = ListBuffer[Edge]()
     var locals = ListBuffer[Variable]()
     var inputs = ListBuffer[Variable]()
     var trace: Trace = null
-    def initializeTrace {
-     trace = new Trace
-    }
-    def initialize(inputValues: ListBuffer[InputValue]) {
-      locals.foreach { v =>
-        v.currentValue = v.initialValue
-      }
-      if (inputValues != null) {
-        inputValues.foreach { v =>
-          v.variable.currentValue = v.value
-        }
-      }
-      nodes.foreach { _.activity = this }
-    }
-    def runNodes {
-      nodes.foreach { node =>
-        node.run
-      }
-    }
-    def fireInitialNode {
-      fireNode(getInitialNode)
-    }
-    def fireNode(node: ActivityNode) {
-//      println("fire node " + node.name)
-      val tokens = node.takeOffedTokens
-      fire(node)(tokens)
-      trace.executedNodes += node
-    }
-    def getInitialNode: InitialNode = {
-      nodes.foreach { node =>
-        if (node.isInstanceOf[InitialNode]) {
-          return node.asInstanceOf[InitialNode]
-        }
-      }
-      null
-    }
-    def getEnabledNodes = {
-      val enabledNodes = ListBuffer[ActivityNode]()
-      nodes.foreach { node =>
-        if (isReady(node))
-          enabledNodes += node
-      }
-      enabledNodes
-    }
-    def main(inputValues: ListBuffer[InputValue]) {
-      initialize(inputValues)
-      initializeTrace
-      runActivity
-    }
-    def runActivity {
-      runNodes
-      fireInitialNode
-      var enabledNodes = getEnabledNodes
-      while (enabledNodes.size > 0) {
-        enabledNodes.foreach { nextNode =>
-          fireNode(nextNode)
-          enabledNodes = getEnabledNodes
-        }
-      }
-    }
-    def terminateNodes {
-      nodes.foreach {
-        _.terminate
-      }
-    }
   }
-  class ActivityEdge(val name: String, source: ActivityNode, target: ActivityNode) {
+  @adt trait Edge {
     var offers = ListBuffer[Offer]()
-
-    def sendOffer(tokens: ListBuffer[Token]) {
-      val offer = new Offer{}
-      tokens.foreach { token =>
-        offer.offeredTokens += token
-      }
-      offers += offer
-    }
-
-    def takeOfferedTokens = {
-      val tokens = ListBuffer[Token]()
-      offers.foreach { o =>
-        tokens ++= o.offeredTokens
-      }
-      offers.clear
-      tokens
-    }
-    def hasOffer: Boolean = {
-      //println("# of offers " + name + ":" + offers.size)
-      offers.foreach { o =>
-        if (o.hasTokens) {
-           //println(name + " hasOffer: true")
-           return true
-        }
-      }
-      //println(name + " hasOffer: false")
-      false
-    }
+    val name: String
+    val source, target: ActivityNode
+    class ActivityEdge(val name: String, val source: ActivityNode, val target: ActivityNode)
+    class ControlFlow(name: String, source: ActivityNode, target: ActivityNode, val guard: BooleanVariable)
+      extends ActivityEdge(name,source,target)
   }
-  class ControlFlow(name: String, source: ActivityNode, target: ActivityNode, val guard: BooleanVariable)
-    extends ActivityEdge(name,source,target)
-
-
-
-  @default(ActivityNode) trait IsReady {
-    type OActivityNode = Boolean
-
-    override def initialNode = _ => false
-
-    override def activityNode = node =>
-      node.isRunning && node.hasOffers
-
-    override def joinNode = node => {
-      var ready = true
-      node.incoming.foreach { edge =>
-        if (!edge.hasOffer) {
-          ready = false
-        }
-      }
-      ready
-    }
-
-    override def decisionNode = node => {
-      var ready = true
-      node.incoming.foreach { edge =>
-        if (!edge.hasOffer)
-          ready = false
-      }
-      ready
-    }
-  }
-
-  @default(ActivityNode) trait Fire {
-    type OActivityNode = ListBuffer[Token] => Unit
-
-    override def activityNode = _ => _ => {}
-
-    override def action = node => _ => {
-      node.doAction
-      node.sendOffers
-    }
-
-    override def activityFinalNode = node => _ =>
-      node.activity.terminateNodes
-
-    override def decisionNode = node => tokens => {
-      val selectedEdge = node.outgoing.find { edge =>
-        edge match {
-          case e: ControlFlow => e.guard.currentValue match {
-            case v: BooleanValue =>  v.value
-            case _ => false
-          }
-          case _ => false
-        }
-      }
-      if (!selectedEdge.isEmpty) {
-        node.addTokens(tokens)
-        selectedEdge.get.sendOffer(tokens)
-      }
-    }
-
-    override def initialNode = node => tokens => {
-      val producedTokens = ListBuffer[Token]()
-      producedTokens += new ControlToken
-      node.addTokens(producedTokens)
-      node.sendOffers(producedTokens)
-    }
-
-    override def forkNode = node => tokens => {
-      val forkedTokens = ListBuffer[Token]()
-      tokens.foreach { token =>
-        val forkedToken = new ForkedToken
-        forkedToken.baseToken = token
-        forkedToken.remainingOffersCount = node.outgoing.size
-        forkedTokens += forkedToken
-      }
-      node.addTokens(forkedTokens)
-      node.sendOffers(forkedTokens)
-    }
-
-    override def controlNode = node => tokens => {
-      node.addTokens(tokens)
-      node.sendOffers(tokens)
-    }
-  }
-
 
   @adt trait ActivityNode {
     val name: String
-    val outgoing = ListBuffer[ActivityEdge]()
-    val incoming = ListBuffer[ActivityEdge]()
+    val outgoing = ListBuffer[Edge]()
+    val incoming = ListBuffer[Edge]()
     var activity: Activity = null
     val heldTokens = ListBuffer[Token]()
     var running: Boolean = false
-    def run { running = true }
-    def isRunning = running
-    def terminate { running = false }
-    def isReady = isRunning
-
-    def sendOffers(tokens: ListBuffer[Token]) =
-      outgoing.foreach { _.sendOffer(tokens) }
-
-    def takeOffedTokens: ListBuffer[Token] = {
-      val allTokens = ListBuffer[Token]()
-      incoming.foreach { edge =>
-        val tokens = edge.takeOfferedTokens
-        tokens.foreach(_.withdraw)
-        allTokens ++= tokens
-      }
-      allTokens
-    }
-    def addTokens(tokens: ListBuffer[Token]) {
-      tokens.foreach { token =>
-        val transferredToken = token.transfer(this)
-        heldTokens += transferredToken
-      }
-    }
-    def hasOffers = {
-      var hasOffer = true
-      incoming.foreach { edge =>
-        if (!edge.hasOffer) {
-          hasOffer = false
-        }
-      }
-      //println(name + " hasOffers: " + hasOffer)
-      hasOffer
-    }
-    def removeToken(token: Token) =
-      heldTokens -= token
 
     trait ExecutableNode
-
-    // variants
-    trait Action extends ExecutableNode {
-      def doAction {}
-      def sendOffers {
-        if (outgoing.size > 0) {
-          val tokens = ListBuffer[Token]()
-          tokens += new ControlToken {}
-          addTokens(tokens)
-          outgoing(0).sendOffer(tokens)
-        }
-      }
-    }
+    trait Action extends ExecutableNode
     class ActivityFinalNode(val name: String) extends FinalNode
     trait ControlNode extends ActivityNode
     class DecisionNode(val name: String) extends ControlNode
@@ -387,21 +170,9 @@ trait UMLLang extends ExprLang {
     class ForkNode(val name: String) extends ControlNode
     class InitialNode(val name: String) extends ControlNode
     class JoinNode(val name: String) extends ControlNode
-    class MergeNode(val name: String) extends ControlNode {
-      override def hasOffers: Boolean = {
-        incoming.foreach { edge =>
-          if (edge.hasOffer) {
-            return true
-          }
-        }
-        false
-      }
-    }
+    class MergeNode(val name: String) extends ControlNode
     class OpaqueAction(val name: String) extends Action {
       val expressions = ListBuffer[Expression]()
-      override def doAction {
-        expressions.foreach(execute(_))
-      }
     }
   }
 
@@ -416,23 +187,6 @@ trait UMLLang extends ExprLang {
   @adt trait Token {
     var holder: ActivityNode = null
 
-    def transfer(holder: ActivityNode) = {
-      if (this.holder != null) {
-        withdraw
-      }
-      this.holder = holder
-      this
-    }
-
-    def withdraw {
-      if (!isWithdrawn) {
-        holder.removeToken(this)
-        holder = null
-      }
-    }
-
-    def isWithdrawn = holder == null
-
     class ControlToken
 
     class ForkedToken {
@@ -443,22 +197,289 @@ trait UMLLang extends ExprLang {
 
   class Offer {
     val offeredTokens = ListBuffer[Token]()
-    def hasTokens = {
-      //println("before # of tokens: " + offeredTokens.size)
-      removeWithdrawnTokens
-      //println("after # of tokens: " + offeredTokens.size)
-      offeredTokens.size > 0
-    }
-    def removeWithdrawnTokens {
-      val tokensToBeRemoved = ListBuffer[Token]()
-      offeredTokens.foreach { token =>
-        if (token.isWithdrawn) {
-          tokensToBeRemoved += token
-        }
-      }
-      offeredTokens --= tokensToBeRemoved
-    }
   }
 
   class Trace(val executedNodes: ListBuffer[ActivityNode] = ListBuffer())
 }
+
+@family
+@adts(Expression,BooleanUnaryOperator,BooleanBinaryOperator,IntegerCalculationOperator,IntegerComparisonOperator,ActivityNode,Edge,Token)
+@ops(Execute)
+trait UmlLang extends UmlModel with ExprLang {
+  // Methods for activity
+  def main(activity: Activity, inputValues: ListBuffer[InputValue]) {
+    initialize(activity,inputValues)
+    initializeTrace(activity)
+    runActivity(activity)
+  }
+  def runActivity(activity: Activity) {
+    runNodes(activity)
+    fireInitialNode(activity)
+    var enabledNodes = getEnabledNodes(activity)
+    while (enabledNodes.size > 0) {
+      enabledNodes.foreach { nextNode =>
+        fireNode(activity,nextNode)
+        enabledNodes = getEnabledNodes(activity)
+      }
+    }
+  }
+  def terminateNodes(activity: Activity) {
+    activity.nodes.foreach {
+      terminate(_)
+    }
+  }
+  def initializeTrace(activity: Activity) {
+    activity.trace = new Trace
+  }
+  def initialize(activity: Activity, inputValues: ListBuffer[InputValue]) {
+    activity.locals.foreach { v =>
+      v.currentValue = v.initialValue
+    }
+    if (inputValues != null) {
+      inputValues.foreach { v =>
+        v.variable.currentValue = v.value
+      }
+    }
+    activity.nodes.foreach { _.activity = activity }
+  }
+  def runNodes(activity: Activity) {
+    activity.nodes.foreach { node =>
+      node.running = true
+    }
+  }
+  def fireInitialNode(activity: Activity) {
+    fireNode(activity, getInitialNode(activity))
+  }
+  def fireNode(activity: Activity, node: ActivityNode) {
+  //          println("fire node " + node.name)
+    val tokens = takeOfferedTokens(node)
+    fire(node)(tokens)
+    activity.trace.executedNodes += node
+  }
+  def getInitialNode(activity: Activity): InitialNode = {
+    activity.nodes.foreach { node =>
+      if (node.isInstanceOf[InitialNode]) {
+        return node.asInstanceOf[InitialNode]
+      }
+    }
+    null
+  }
+  def getEnabledNodes(activity: Activity) = {
+    val enabledNodes = ListBuffer[ActivityNode]()
+    activity.nodes.foreach { node =>
+      if (isReady(node))
+        enabledNodes += node
+    }
+    enabledNodes
+  }
+
+  @default(ActivityNode, Edge) trait TakeOfferedTokens {
+    type OActivityNode = ListBuffer[Token]
+    type OEdge = OActivityNode
+
+    def activityNode = node => {
+      val allTokens = ListBuffer[Token]()
+      node.incoming.foreach { edge =>
+        val tokens = this(edge)
+        tokens.foreach(withdraw(_))
+        allTokens ++= tokens
+      }
+      allTokens
+    }
+
+    def edge = e => {
+      val tokens = ListBuffer[Token]()
+      e.offers.foreach { o =>
+        tokens ++= o.offeredTokens
+      }
+      e.offers.clear
+      tokens
+    }
+  }
+
+  // Methods for ActivityNode
+  def isRunning(node: ActivityNode) = node.running
+  def terminate(node: ActivityNode) { node.running = false }
+  def addTokens(node: ActivityNode, tokens: ListBuffer[Token]) {
+    tokens.foreach { token =>
+      val transferredToken = transfer(token, node)
+      node.heldTokens += transferredToken
+    }
+  }
+  def removeToken(node: ActivityNode, token: Token) =
+    node.heldTokens -= token
+  def sendOffers(node: ActivityNode, tokens: ListBuffer[Token]) =
+    node.outgoing.foreach { sendOffer(_, tokens) }
+  // Methods for token
+  def transfer(token: Token, holder: ActivityNode) = {
+    if (token.holder != null) {
+      withdraw(token)
+    }
+    token.holder = holder
+    token
+  }
+
+  def withdraw(token: Token) {
+    if (!isWithdrawn(token)) {
+      removeToken(token.holder, token)
+      token.holder = null
+    }
+  }
+
+  def isWithdrawn(token: Token) = token.holder == null
+
+
+  // Methods for Offer
+  def hasTokens(offer: Offer) = {
+    removeWithdrawnTokens(offer)
+    offer.offeredTokens.size > 0
+  }
+  def removeWithdrawnTokens(offer: Offer) {
+    val tokensToBeRemoved = ListBuffer[Token]()
+    offer.offeredTokens.foreach { token =>
+      if (isWithdrawn(token)) {
+        tokensToBeRemoved += token
+      }
+    }
+    offer.offeredTokens --= tokensToBeRemoved
+  }
+
+  // Methods for Edge
+  def sendOffer(edge: Edge, tokens: ListBuffer[Token]) {
+    val offer = new Offer{}
+    tokens.foreach { token =>
+      offer.offeredTokens += token
+    }
+    edge.offers += offer
+  }
+
+  def takeOfferedTokens(edge: Edge): ListBuffer[Token] = {
+    val tokens = ListBuffer[Token]()
+    edge.offers.foreach { o =>
+        tokens ++= o.offeredTokens
+    }
+    edge.offers.clear
+    tokens
+  }
+  def hasOffer(edge: Edge): Boolean = {
+    //println("# of offers " + name + ":" + offers.size)
+    edge.offers.foreach { o =>
+      if (hasTokens(o)) {
+         //println(name + " hasOffer: true")
+         return true
+      }
+    }
+    //println(name + " hasOffer: false")
+    false
+  }
+
+  @default(ActivityNode) trait IsReady {
+    type OActivityNode = Boolean
+
+    override def initialNode = _ => false
+
+    override def activityNode = node =>
+      isRunning(node) && hasOffers(node)
+
+    override def joinNode = node => {
+      var ready = true
+      node.incoming.foreach { edge =>
+        if (!hasOffer(edge)) {
+          ready = false
+        }
+      }
+      ready
+    }
+
+    override def decisionNode = node => {
+      var ready = true
+      node.incoming.foreach { edge =>
+        if (!hasOffer(edge))
+          ready = false
+      }
+      ready
+    }
+  }
+
+  @default(ActivityNode) trait HasOffers {
+    type OActivityNode = Boolean
+
+    def activityNode= node => {
+      var flag = true
+      node.incoming.foreach { edge =>
+        if (!hasOffer(edge)) {
+          flag = false
+        }
+      }
+      //println(name + " hasOffers: " + hasOffer)
+      flag
+    }
+
+    override def mergeNode = node =>
+      node.incoming.exists{ hasOffer(_) }
+  }
+
+  @default(ActivityNode) trait Fire {
+    type OActivityNode = ListBuffer[Token] => Unit
+
+    override def activityNode = _ => _ => {}
+
+    override def action = node => _ => {
+      if (node.outgoing.size > 0) {
+        val tokens = ListBuffer[Token]()
+        tokens += new ControlToken {}
+        addTokens(node,tokens)
+        sendOffer(node.outgoing(0),tokens)
+      }
+    }
+
+    override def opaqueAction = node => tokens => {
+      node.expressions.foreach(execute(_))
+      action(node)(tokens)
+    }
+
+    override def activityFinalNode = node => _ =>
+      terminateNodes(node.activity)
+
+    override def decisionNode = node => tokens => {
+      val selectedEdge = node.outgoing.find { edge =>
+        edge match {
+          case e: ControlFlow => e.guard.currentValue match {
+            case v: BooleanValue =>  v.value
+            case _ => false
+          }
+          case _ => false
+        }
+      }
+      if (!selectedEdge.isEmpty) {
+        addTokens(node, tokens)
+        sendOffer(selectedEdge.get, tokens)
+      }
+    }
+
+    override def initialNode = node => tokens => {
+      val producedTokens = ListBuffer[Token]()
+      producedTokens += new ControlToken
+      addTokens(node, producedTokens)
+      sendOffers(node, producedTokens)
+    }
+
+    override def forkNode = node => tokens => {
+      val forkedTokens = ListBuffer[Token]()
+      tokens.foreach { token =>
+        val forkedToken = new ForkedToken
+        forkedToken.baseToken = token
+        forkedToken.remainingOffersCount = node.outgoing.size
+        forkedTokens += forkedToken
+      }
+      addTokens(node, forkedTokens)
+      sendOffers(node, forkedTokens)
+    }
+
+    override def controlNode = node => tokens => {
+      addTokens(node, tokens)
+      sendOffers(node, tokens)
+    }
+  }
+}
+
