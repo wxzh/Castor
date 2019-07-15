@@ -377,12 +377,14 @@ object Original {
   class MergeNode(val name: String) extends ControlNode {
     override def hasOffers: Boolean = {
 //      var ready = false
-      incoming.foreach { edge =>
-        if (edge.hasOffer) {
-          return true
-        }
-      }
-      false
+
+      incoming.exists{ _.hasOffer }
+//      incoming.foreach { edge =>
+//        if (edge.hasOffer) {
+//          return true
+//        }
+//      }
+//      false
     }
   }
   class OpaqueAction(val name: String) extends Action {

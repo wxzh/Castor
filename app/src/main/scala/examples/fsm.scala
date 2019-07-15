@@ -15,7 +15,7 @@ import scala.collection.mutable.ListBuffer
     class State(var name: String)
   }
   @adt trait T {
-    class Trans(var event: String, var to: S)
+    class Trans(var event: String, var target: S)
   }
   @visit(M,S,T) trait Print {
     type OM = String
@@ -23,7 +23,7 @@ import scala.collection.mutable.ListBuffer
     type OT = String
     def machine = _.states.map(this(_)).mkString("\n")
     def state = s => s.trans.map(this(_)).mkString(s.name + ":\n","\n","")
-    def trans = t => t.event + " -> " + t.to.name
+    def trans = t => t.event + " -> " + t.target.name
   }
   @visit(M,S,T) trait Step {
     type OM = String => Unit
@@ -32,7 +32,7 @@ import scala.collection.mutable.ListBuffer
     var result: S = null
     def machine = m => ev => m.states.foreach{this(_)(ev)}
     def state = s => ev => s.trans.foreach{this(_)(ev)}
-    def trans = t => ev => if (ev == t.event) result = t.to
+    def trans = t => ev => if (ev == t.event) result = t.target
   }
 }
 object TestFSM extends App {
@@ -65,8 +65,8 @@ object TestFSM extends App {
 @family @adts(S,M,Tm) @ops(Eval)
 trait GuardedFSM extends FSM with HOAS {
   @adt trait T extends super[FSM].T {
-    class GuardedTrans(event: String, to: S, var tm: Tm[Boolean])
-      extends Trans(event,to)
+    class GuardedTrans(event: String, target: S, var tm: Tm[Boolean])
+      extends Trans(event,target)
   }
   @visit(M,S,T) trait Step extends super.Step {
     def guardedTrans = t => ev => {

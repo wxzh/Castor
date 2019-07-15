@@ -3,7 +3,7 @@ package uml
 import examples._
 import collection.mutable._
 
-@family trait ExprModel {
+@family trait ExpModel {
   @adt trait Value {
     class IntegerValue(val value: Int)
     class BooleanValue(val value: Boolean)
@@ -73,7 +73,7 @@ import collection.mutable._
 
 @family
 @adts(IntegerCalculationOperator,IntegerComparisonOperator,BooleanUnaryOperator,BooleanBinaryOperator,Expression,Value,Variable)
-trait ExprLang extends ExprModel {
+trait ExpLang extends ExpModel {
   @visit(IntegerCalculationOperator,IntegerComparisonOperator,BooleanUnaryOperator,BooleanBinaryOperator,Expression)
   trait Execute {
     type OExpression = Unit
@@ -135,7 +135,7 @@ trait ExprLang extends ExprModel {
 
 @family
 //@adts(IntegerCalculationOperator,IntegerComparisonOperator,BooleanUnaryOperator,BooleanBinaryOperator,Expression,Value,Variable)
-trait UmlModel extends ExprModel {
+trait UmlModel extends ExpModel {
   trait Activity {
     val name: String
     var nodes = ListBuffer[ActivityNode]()
@@ -205,7 +205,7 @@ trait UmlModel extends ExprModel {
 @family
 @adts(Expression,BooleanUnaryOperator,BooleanBinaryOperator,IntegerCalculationOperator,IntegerComparisonOperator,ActivityNode,Edge,Token)
 @ops(Execute)
-trait UmlLang extends UmlModel with ExprLang {
+trait UmlLang extends UmlModel with ExpLang {
   // Methods for activity
   def main(activity: Activity, inputValues: ListBuffer[InputValue]) {
     initialize(activity,inputValues)
