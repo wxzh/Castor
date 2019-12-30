@@ -187,12 +187,12 @@ class family extends scala.annotation.StaticAnnotation {
       val (defaultName,targs) = template.parents match {
         case Nil =>
           ("",Nil)
-        case List(Term.Apply(Ctor.Ref.Name(name),_)) => // extends C
+        case Term.Apply(Term.ApplyType(Ctor.Ref.Name(name),ts),Nil) :: Nil => // extends D[...]
+          (name,ts)
+        case Term.Apply(Ctor.Ref.Name(name),Nil) :: (_ :+ Term.Apply(Term.ApplyType(Ctor.Ref.Name(_),ts),Nil)) => // extends C2 with D[...]
+          (name,ts)
+        case Term.Apply(Ctor.Ref.Name(name),_) :: _ => // extends C
           (name,Nil)
-        case List(Term.Apply(Term.ApplyType(Ctor.Ref.Name(name),ts),Nil)) => // extends D[...]
-          (name,ts)
-        case List(Term.Apply(Ctor.Ref.Name(name),Nil), Term.Apply(Term.ApplyType(Ctor.Ref.Name(_),ts),Nil)) => // extends C2 with D[...]
-          (name,ts)
         case x =>
           abort("Unrecognized parents"+x.toString)
       }
@@ -216,7 +216,8 @@ class family extends scala.annotation.StaticAnnotation {
       def genDefault =
         stat match {
           case _: Defn.Object => q"def $visitMethod[..$tparams] = $default(${Term.Name(ctrName)})"
-          case _ => q"def $visitMethod[..$tparams] = (x: $self) => $default(x)"
+          case _: Defn.Trait => q"def $visitMethod[..$tparams] = (x: $self) => $default(x)"
+          case _: Defn.Class => q"def $visitMethod[..$tparams] = $default(_)"
         }
 
       def genAccept = {

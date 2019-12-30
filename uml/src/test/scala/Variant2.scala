@@ -1,4 +1,4 @@
-import uml.Original._
+import uml.Lang._
 
 object Variant2 {
 val initialNode = new InitialNode("initialNode")

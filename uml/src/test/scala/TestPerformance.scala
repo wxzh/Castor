@@ -1,4 +1,5 @@
-import uml.Original._
+import uml.Lang._
+import uml.Metamodel._
 
 import org.scalatest._
 import org.scalameter._

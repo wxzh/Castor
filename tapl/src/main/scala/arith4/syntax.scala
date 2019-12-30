@@ -4,7 +4,7 @@ trait Term {
   trait Tm
   case class NoRuleApplies() extends Exception
 
-  def eval1: PartialFunction[Tm,Tm]
+  def eval1: PartialFunction[Tm,Tm] = throw NoRuleApplies()
   def eval(t: Tm): Tm =
     try {
       val t1 = eval1(t)
@@ -25,7 +25,7 @@ trait Nat extends Term {
     case _ => false
   }
 
-  def eval1: PartialFunction[Tm,Tm] = {
+  override def eval1 = {
     case TmZero => throw NoRuleApplies()
     case TmSucc(t1) => TmSucc(eval1(t1))
     case TmPred(TmZero) => TmZero
@@ -44,7 +44,7 @@ trait Bool extends Term {
     case TmFalse => true
     case _ => false
   }
-  def eval1: PartialFunction[Tm,Tm] = {
+  override def eval1 = {
     case TmIf(TmTrue, t2, _) => t2
     case TmIf(TmFalse, _, t3) => t3
     case TmIf(t1,t2,t3) => TmIf(eval1(t1),t2,t3)

@@ -58,6 +58,7 @@ package examples
   }
 }
 
+
 object TestArith extends App {
   import Arith._
   val term = TmIsZero(TmIf(TmFalse,TmTrue,TmPred(TmSucc(TmZero))))
@@ -154,6 +155,40 @@ trait TyArith extends Arith {
     def tmIsZero = x => this(x.t) match {
       case Some(TyNat) => Some(TyBool)
       case _ => None
+    }
+  }
+}
+
+@adts(Tm) @ops(Eval1)
+@family trait EvalArith extends Arith {
+  @adt trait Value {
+    case class IntValue(v: Int)
+    case class BoolValue(v: Boolean)
+    case object NoValue
+  }
+  @visit(Tm) trait Eval {
+    type OTm = Value
+    def tmZero = IntValue(0)
+    def tmSucc = x => this(x.t) match {
+      case IntValue(n) => IntValue(n+1)
+      case _ => throw NoRuleApplies
+    }
+
+    def tmPred = x => this(x.t) match {
+      case IntValue(n) => IntValue(n-1)
+      case _ => throw NoRuleApplies
+    }
+    def tmTrue = BoolValue(true)
+    def tmFalse = BoolValue(false)
+    def tmIf = x => this(x.t1) match {
+      case BoolValue(true) => this(x.t2)
+      case BoolValue(false) => this(x.t3)
+      case _ => throw NoRuleApplies
+    }
+    def tmIsZero = x => this(x.t) match {
+      case IntValue(0) => BoolValue(true)
+      case IntValue(_) => BoolValue(false)
+      case _ => throw NoRuleApplies
     }
   }
 }

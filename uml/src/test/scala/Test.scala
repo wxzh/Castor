@@ -1,5 +1,6 @@
 import org.scalatest._
-import uml.Original._
+import uml.Lang._
+import uml.Metamodel._
 import collection.mutable._
 
 class Test extends FunSuite {

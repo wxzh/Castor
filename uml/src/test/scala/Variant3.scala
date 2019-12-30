@@ -1,4 +1,5 @@
-import uml.Original._
+import uml.Lang._
+import uml.Metamodel._
 
 object Variant3 {
 val one = new IntegerVariable("one",new IntegerValue(1))

@@ -2,16 +2,171 @@ package uml
 
 import collection.mutable._
 
-object Original {
-  trait Activity {
+object Metamodel {
+  // Expressions
+  trait IExpression {
+    def execute: Unit
+  }
+  trait IIntegerExpression extends IExpression {
+    val operand1: IntegerVariable
+    val operand2: IntegerVariable
+  }
+  trait IIntegerCalculationExpression extends IIntegerExpression {
+    val assignee: IntegerVariable
+    val operator: IntegerCalculationOperator
+    val operand1: IntegerVariable
+    val operand2: IntegerVariable
+  }
+  trait IIntegerComparisonExpression extends IIntegerExpression {
+    val assignee: BooleanVariable
+    val operator: IntegerComparisonOperator
+    val operand1: IntegerVariable
+    val operand2: IntegerVariable
+  }
+  trait IBooleanExpression extends IExpression {
+    val assignee: BooleanVariable
+  }
+  trait IBooleanUnaryExpression extends IBooleanExpression {
+    val operator: BooleanUnaryOperator
+    val operand: BooleanVariable
+  }
+  trait IBooleanBinaryExpression extends IBooleanExpression {
+    val operator: BooleanBinaryOperator
+    val operand1: BooleanVariable
+    val operand2: BooleanVariable
+  }
+
+  // Operators
+  sealed trait BooleanUnaryOperator
+  case object NOT extends BooleanUnaryOperator
+
+  sealed trait BooleanBinaryOperator
+  case object AND extends BooleanBinaryOperator
+  case object OR extends BooleanBinaryOperator
+
+  sealed trait IntegerCalculationOperator
+  case object ADD extends IntegerCalculationOperator
+  case object SUBTRACT extends IntegerCalculationOperator
+
+  sealed trait IntegerComparisonOperator
+  case object SMALLER extends IntegerComparisonOperator
+  case object SMALLER_EQUALS extends IntegerComparisonOperator
+  case object EQUALS extends IntegerComparisonOperator
+  case object GREATER_EQUALS extends IntegerComparisonOperator
+  case object GREATER extends IntegerComparisonOperator
+
+  // Values
+  trait Value
+  class IntegerValue(val value: Int) extends Value
+  class BooleanValue(val value: Boolean) extends Value
+
+  // Variables
+  trait Variable {
     val name: String
-    var nodes = ListBuffer[ActivityNode]()
-    var edges = ListBuffer[ActivityEdge]()
+    val initialValue: Value
+    var currentValue: Value = null
+  }
+  class IntegerVariable(val name: String, val initialValue: IntegerValue) extends Variable
+  class BooleanVariable(val name: String, val initialValue: BooleanValue) extends Variable
+
+  // Nodes
+  trait IActivityNode {
+    val name: String
+    val outgoing = ListBuffer[IActivityEdge]()
+    val incoming = ListBuffer[IActivityEdge]()
+    var activity: IActivity = null
+    val heldTokens = ListBuffer[IToken]()
+    var running: Boolean = false
+    def fire(tokens: ListBuffer[IToken]): Unit
+    def run: Unit
+    def isRunning: Boolean
+    def terminate: Unit
+    def isReady: Boolean
+
+    def sendOffers(tokens: ListBuffer[IToken]): Unit
+    def takeOffedTokens: ListBuffer[IToken]
+    def addTokens(tokens: ListBuffer[IToken]): Unit
+    def hasOffers: Boolean
+    def removeToken(token: IToken): Unit
+  }
+  trait IExecutableNode extends IActivityNode
+  trait IAction extends IExecutableNode
+  trait IActivityFinalNode extends IFinalNode
+  trait IControlNode extends IActivityNode
+  trait IDecisionNode extends IControlNode
+  trait IFinalNode extends IControlNode
+  trait IForkNode extends IControlNode
+  trait IInitialNode extends IControlNode
+  trait IJoinNode extends IControlNode
+  trait IMergeNode extends IControlNode
+  trait IOpaqueAction extends IAction {
+    val expressions = ListBuffer[IExpression]()
+  }
+
+  // Edges
+  trait IActivityEdge {
+    val name: String
+    val source: IActivityNode
+    val target: IActivityNode
+    var offers = ListBuffer[IOffer]()
+
+    def sendOffer(tokens: ListBuffer[IToken]): Unit
+    def takeOfferedTokens: ListBuffer[IToken]
+    def hasOffer: Boolean
+  }
+  trait IControlFlow extends IActivityEdge {
+    val guard: BooleanVariable
+  }
+
+  // Activity
+  trait IActivity {
+    val name: String
+    var nodes = ListBuffer[IActivityNode]()
+    var edges = ListBuffer[IActivityEdge]()
     var locals = ListBuffer[Variable]()
     var inputs = ListBuffer[Variable]()
     var trace: Trace = null
+
+    def terminateNodes: Unit
+  }
+
+  // Token
+  trait IToken {
+    var holder: IActivityNode = null
+    def transfer(holder: IActivityNode): IToken
+    def withdraw: Unit
+    def isWithdrawn : Boolean
+  }
+  trait IControlToken extends IToken
+  trait IForkedToken extends IToken {
+    var baseToken: IToken = null
+    var remainingOffersCount = 0 // ???
+  }
+
+  trait IOffer {
+    val offeredTokens = ListBuffer[IToken]()
+    def hasTokens: Boolean
+  }
+
+  trait Trace {
+    val executedNodes: ListBuffer[IActivityNode] = ListBuffer()
+  }
+
+  trait Input {
+    var inputValues = ListBuffer[InputValue]()
+  }
+  trait InputValue {
+    var value: Value = null
+    var variable: Variable = null
+  }
+}
+
+object Lang {
+  import Metamodel._
+  trait Activity extends IActivity {
+    val name: String
     def initializeTrace {
-      trace = new Trace
+      trace = new Trace {}
     }
     def initialize(inputValues: ListBuffer[InputValue]) {
       locals.foreach { v =>
@@ -32,22 +187,22 @@ object Original {
     def fireInitialNode {
       fireNode(getInitialNode)
     }
-    def fireNode(node: ActivityNode) {
+    def fireNode(node: IActivityNode) {
 //      println("fire node " + node.name)
       val tokens = node.takeOffedTokens
       node.fire(tokens)
       trace.executedNodes += node
     }
-    def getInitialNode: InitialNode = {
+    def getInitialNode: IInitialNode = {
       nodes.foreach { node =>
-        if (node.isInstanceOf[InitialNode]) {
-          return node.asInstanceOf[InitialNode]
+        if (node.isInstanceOf[IInitialNode]) {
+          return node.asInstanceOf[IInitialNode]
         }
       }
       null
     }
     def getEnabledNodes = {
-      val enabledNodes = ListBuffer[ActivityNode]()
+      val enabledNodes = ListBuffer[IActivityNode]()
       nodes.foreach { node =>
         if (node.isReady)
           enabledNodes += node
@@ -76,11 +231,9 @@ object Original {
       }
     }
   }
-  class ActivityEdge(val name: String, source: ActivityNode, target: ActivityNode) {
-    var offers = ListBuffer[Offer]()
-
-    def sendOffer(tokens: ListBuffer[Token]) {
-      val offer = new Offer{}
+  class ActivityEdge(val name: String, val source: IActivityNode, val target: IActivityNode) extends IActivityEdge {
+    def sendOffer(tokens: ListBuffer[IToken]) {
+      val offer = new Offer
       tokens.foreach { token =>
         offer.offeredTokens += token
       }
@@ -88,7 +241,7 @@ object Original {
     }
 
     def takeOfferedTokens = {
-      val tokens = ListBuffer[Token]()
+      val tokens = ListBuffer[IToken]()
       offers.foreach { o =>
         tokens ++= o.offeredTokens
       }
@@ -107,15 +260,12 @@ object Original {
       false
     }
   }
-  class ControlFlow(name: String, source: ActivityNode, target: ActivityNode, val guard: BooleanVariable)
-    extends ActivityEdge(name, source, target)
+  class ControlFlow(name: String, source: IActivityNode, target: IActivityNode, val guard: BooleanVariable)
+    extends ActivityEdge(name, source, target) with IControlFlow
 
-  trait Expression {
-    def execute: Unit
-  }
-  trait IntegerExpression extends Expression {
-    val operand1: IntegerVariable
-    val operand2: IntegerVariable
+  trait Expression extends IExpression
+
+  trait IntegerExpression extends IIntegerExpression with Expression {
     def getCurrentIntValue(variable: Variable) = {
       var currentValue: IntegerValue = null
       val value = variable.currentValue
@@ -125,11 +275,12 @@ object Original {
       currentValue
     }
   }
-  class IntegerCalculationExpression
-    (val assignee: IntegerVariable,
-     val operator: IntegerCalculationOperator,
-     val operand1: IntegerVariable,
-     val operand2: IntegerVariable) extends IntegerExpression {
+
+  class IntegerCalculationExpression(val assignee: IntegerVariable,
+                                         val operator: IntegerCalculationOperator,
+                                         val operand1: IntegerVariable,
+                                         val operand2: IntegerVariable)
+    extends IntegerExpression with IIntegerCalculationExpression  {
     def execute = {
       val operandValue1 = getCurrentIntValue(operand1).value
       val operandValue2 = getCurrentIntValue(operand2).value
@@ -142,11 +293,11 @@ object Original {
       assignee.currentValue = resultValue
     }
   }
-  class IntegerComparisonExpression
-    (val assignee: BooleanVariable,
-     val operator: IntegerComparisonOperator,
-     val operand1: IntegerVariable,
-     val operand2: IntegerVariable) extends IntegerExpression {
+  class IntegerComparisonExpression(val assignee: BooleanVariable,
+                                        val operator: IntegerComparisonOperator,
+                                        val operand1: IntegerVariable,
+                                        val operand2: IntegerVariable)
+    extends IntegerExpression with IIntegerComparisonExpression {
 
 	  def execute = {
 		  val operandValue1 = getCurrentIntValue(operand1).value
@@ -164,19 +315,7 @@ object Original {
 		 assignee.currentValue = resultValue
 	  }
   }
-  sealed trait IntegerCalculationOperator
-  case object ADD extends IntegerCalculationOperator
-  case object SUBTRACT extends IntegerCalculationOperator
-
-  sealed trait IntegerComparisonOperator
-  case object SMALLER extends IntegerComparisonOperator
-  case object SMALLER_EQUALS extends IntegerComparisonOperator
-  case object EQUALS extends IntegerComparisonOperator
-  case object GREATER_EQUALS extends IntegerComparisonOperator
-  case object GREATER extends IntegerComparisonOperator
-
-  trait BooleanExpression extends Expression {
-    val assignee: BooleanVariable
+  trait BooleanExpression extends Expression with IBooleanExpression {
     def getCurrentBoolValue(variable: Variable): BooleanValue = {
       var currentValue: BooleanValue = null
       val value = variable.currentValue
@@ -191,7 +330,9 @@ object Original {
     }
   }
 
-  class BooleanUnaryExpression(val assignee: BooleanVariable, operator: BooleanUnaryOperator, operand: BooleanVariable) extends BooleanExpression {
+  class BooleanUnaryExpression(val assignee: BooleanVariable,
+                                   val operator: BooleanUnaryOperator,
+                                   val operand: BooleanVariable) extends BooleanExpression with IBooleanUnaryExpression {
     def execute = {
       val operandValue = getCurrentBoolValue(operand).value
       val result =
@@ -202,11 +343,11 @@ object Original {
     }
   }
 
-  class BooleanBinaryExpression
-    (val assignee: BooleanVariable,
-     operator: BooleanBinaryOperator,
-     operand1: BooleanVariable,
-     operand2: BooleanVariable) extends BooleanExpression {
+  class BooleanBinaryExpression(val assignee: BooleanVariable,
+                                    val operator: BooleanBinaryOperator,
+                                    val operand1: BooleanVariable,
+                                    val operand2: BooleanVariable)
+    extends BooleanExpression with IBooleanBinaryExpression {
     def execute = {
 		  val operandValue1 = getCurrentBoolValue(operand1).value
 		  val operandValue2 = getCurrentBoolValue(operand2).value
@@ -219,53 +360,42 @@ object Original {
 	  }
   }
 
-  sealed trait BooleanUnaryOperator
-  case object NOT extends BooleanUnaryOperator
 
-  sealed trait BooleanBinaryOperator
-  case object AND extends BooleanBinaryOperator
-  case object OR extends BooleanBinaryOperator
-
-  trait Action extends ExecutableNode {
+  trait Action extends ExecutableNode with IAction {
     def doAction {}
-    override def fire(tokens: ListBuffer[Token]) {
+    override def fire(tokens: ListBuffer[IToken]) {
       doAction
       sendOffers
     }
     def sendOffers {
       if (outgoing.size > 0) {
-        val tokens = ListBuffer[Token]()
-        tokens += new ControlToken {}
+        val tokens = ListBuffer[IToken]()
+        tokens += new ControlToken
         addTokens(tokens)
         outgoing(0).sendOffer(tokens)
       }
     }
     override def isReady = isRunning && hasOffers
   }
-  class ActivityFinalNode(val name: String) extends FinalNode {
-    override def fire(tokens: ListBuffer[Token]) {
+  class ActivityFinalNode(val name: String) extends FinalNode with IActivityFinalNode {
+    override def fire(tokens: ListBuffer[IToken]) {
       activity.terminateNodes
     }
   }
 
-  trait ActivityNode {
+  trait ActivityNode extends IActivityNode {
     val name: String
-    val outgoing = ListBuffer[ActivityEdge]()
-    val incoming = ListBuffer[ActivityEdge]()
-    var activity: Activity = null
-    val heldTokens = ListBuffer[Token]()
-    var running: Boolean = false
-    def fire(tokens: ListBuffer[Token]) {}
+    def fire(tokens: ListBuffer[IToken]) {}
     def run { running = true }
     def isRunning = running
     def terminate { running = false }
     def isReady = isRunning
 
-    def sendOffers(tokens: ListBuffer[Token]) =
+    def sendOffers(tokens: ListBuffer[IToken]) =
       outgoing.foreach { _.sendOffer(tokens) }
 
-    def takeOffedTokens: ListBuffer[Token] = {
-      val allTokens = ListBuffer[Token]()
+    def takeOffedTokens: ListBuffer[IToken] = {
+      val allTokens = ListBuffer[IToken]()
       incoming.foreach { edge =>
         val tokens = edge.takeOfferedTokens
         tokens.foreach(_.withdraw)
@@ -273,7 +403,7 @@ object Original {
       }
       allTokens
     }
-    def addTokens(tokens: ListBuffer[Token]) {
+    def addTokens(tokens: ListBuffer[IToken]) {
       tokens.foreach { token =>
         val transferredToken = token.transfer(this)
         heldTokens += transferredToken
@@ -289,18 +419,18 @@ object Original {
       //println(name + " hasOffers: " + hasOffer)
       hasOffer
     }
-    def removeToken(token: Token) =
+    def removeToken(token: IToken) =
       heldTokens -= token
   }
-  trait ControlNode extends ActivityNode {
-    override def fire(tokens: ListBuffer[Token]) {
+  trait ControlNode extends ActivityNode with IControlNode {
+    override def fire(tokens: ListBuffer[IToken]) {
       addTokens(tokens)
       sendOffers(tokens)
     }
     override def isReady = isRunning && hasOffers
   }
-  class DecisionNode(val name: String) extends ControlNode {
-    override def fire(tokens: ListBuffer[Token]) {
+  class DecisionNode(val name: String) extends ControlNode with IDecisionNode {
+    override def fire(tokens: ListBuffer[IToken]) {
       val selectedEdge = outgoing.find { edge =>
         edge match {
           case e: ControlFlow => e.guard.currentValue match {
@@ -315,20 +445,6 @@ object Original {
         selectedEdge.get.sendOffer(tokens)
       }
     }
-//      val selectedEdge: ActivityEdge = null
-//      outgoing.foreach { edge =>
-//        if (edge isInstanceOf [ControlFlow]) {
-//          val controlFlow = edge asInstanceOf [ControlFlow]
-//          val guardValue = controlFlow.guard.currentValue
-//
-//          if (guardValue isInstanceOf [BooleanValue]) {
-//            val booleanValue = guardValue asInstanceOf [BooleanValue]
-//            if (booleanValue.value) {
-//              selectedEdge = edge
-//            }
-//          }
-//        }
-//      }
     override def isReady = {
       var ready = true
       incoming.foreach { edge =>
@@ -339,13 +455,13 @@ object Original {
     }
 
   }
-  trait ExecutableNode extends ActivityNode
-  trait FinalNode extends ControlNode
-  class ForkNode(val name: String) extends ControlNode {
-    override def fire(tokens: ListBuffer[Token]) {
-      val forkedTokens = ListBuffer[Token]()
+  trait ExecutableNode extends ActivityNode with IExecutableNode
+  trait FinalNode extends ControlNode with IFinalNode
+  class ForkNode(val name: String) extends ControlNode with IForkNode {
+    override def fire(tokens: ListBuffer[IToken]) {
+      val forkedTokens = ListBuffer[IToken]()
       tokens.foreach { token =>
-        val forkedToken = new ForkedToken {}
+        val forkedToken = new ForkedToken
         forkedToken.baseToken = token
         forkedToken.remainingOffersCount = outgoing.size
         forkedTokens += forkedToken
@@ -354,16 +470,16 @@ object Original {
       sendOffers(forkedTokens)
     }
   }
-  class InitialNode(val name: String) extends ControlNode {
-    override def fire(tokens: ListBuffer[Token]) {
-      val producedTokens = ListBuffer[Token]()
-      producedTokens += new ControlToken{}
+  class InitialNode(val name: String) extends ControlNode with IInitialNode {
+    override def fire(tokens: ListBuffer[IToken]) {
+      val producedTokens = ListBuffer[IToken]()
+      producedTokens += new ControlToken
       addTokens(producedTokens)
       sendOffers(producedTokens)
     }
     override def isReady = false
   }
-  class JoinNode(val name: String) extends ControlNode {
+  class JoinNode(val name: String) extends ControlNode with IJoinNode {
     override def isReady = {
       var ready = true
       incoming.foreach { edge =>
@@ -374,7 +490,7 @@ object Original {
       ready
     }
   }
-  class MergeNode(val name: String) extends ControlNode {
+  class MergeNode(val name: String) extends ControlNode with IMergeNode {
     override def hasOffers: Boolean = {
 //      var ready = false
 
@@ -387,36 +503,14 @@ object Original {
 //      false
     }
   }
-  class OpaqueAction(val name: String) extends Action {
-    val expressions = ListBuffer[Expression]()
+  class OpaqueAction(val name: String) extends Action with IOpaqueAction {
     override def doAction {
       expressions.foreach(_.execute)
     }
   }
 
-  trait Value
-  class IntegerValue(val value: Int) extends Value
-  class BooleanValue(val value: Boolean) extends Value
-
-  trait Variable {
-    val name: String
-    val initialValue: Value
-    var currentValue: Value = null
-  }
-  class IntegerVariable(val name: String, val initialValue: Value) extends Variable
-  class BooleanVariable(val name: String, val initialValue: Value) extends Variable
-
-  trait Input {
-    var inputValues = ListBuffer[InputValue]()
-  }
-  trait InputValue {
-    var value: Value = null
-    var variable: Variable = null
-  }
-
-  trait Token {
-    var holder: ActivityNode = null
-    def transfer(holder: ActivityNode) = {
+  trait Token extends IToken {
+    def transfer(holder: IActivityNode) = {
       if (this.holder != null) {
         withdraw
       }
@@ -433,14 +527,10 @@ object Original {
 
     def isWithdrawn = holder == null
   }
-  trait ControlToken extends Token
-  trait ForkedToken extends Token {
-    var baseToken: Token = null
-    var remainingOffersCount = 0 // ???
-  }
+  class ControlToken extends Token with IControlToken
+  class ForkedToken extends Token with IForkedToken
 
-  class Offer {
-    val offeredTokens = ListBuffer[Token]()
+  class Offer extends IOffer {
     def hasTokens = {
 //      println("before # of tokens: " + offeredTokens.size)
       removeWithdrawnTokens
@@ -448,7 +538,7 @@ object Original {
       offeredTokens.size > 0
     }
     def removeWithdrawnTokens {
-      val tokensToBeRemoved = ListBuffer[Token]()
+      val tokensToBeRemoved = ListBuffer[IToken]()
       offeredTokens.foreach { token =>
         if (token.isWithdrawn) {
           tokensToBeRemoved += token
@@ -457,8 +547,4 @@ object Original {
       offeredTokens --= tokensToBeRemoved
     }
   }
-
-  class Trace(
-    val executedNodes: ListBuffer[ActivityNode] = ListBuffer()
-  )
 }

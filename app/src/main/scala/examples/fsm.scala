@@ -1,7 +1,5 @@
 package examples
 
-import java.util.IdentityHashMap
-
 import scala.collection.mutable.ListBuffer
 
 @family trait FSM {
@@ -87,9 +85,9 @@ trait GuardedFSM extends FSM with HOAS {
         reached += s
         s.trans.foreach(this (_))
       }
-    def trans = t => this(t.to)
+    def trans = t => this(t.target)
     def guardedTrans = t =>
-      if (eval(t.tm)) this(t.to)
+      if (eval(t.tm)) this(t.target)
   }
 }
 

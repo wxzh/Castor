@@ -13,7 +13,7 @@ package examples
   }
 }
 
-@family @adts(Tm) trait EvalArith extends GArith {
+@family @adts(Tm) trait EvalGArith extends GArith {
   @visit(Tm) trait Eval {
     type OTm[A] = A
     def tmZero = 0
@@ -26,7 +26,7 @@ package examples
   }
 }
 
-@family @adts(Tm) trait Eval1Arith extends GArith {
+@family @adts(Tm) trait Eval1GArith extends GArith {
   def nv[A](t: Tm[A]): Boolean = t match {
     case TmZero => true
     case TmSucc(t1) => nv(t1)
@@ -57,8 +57,7 @@ package examples
 }
 
 
-
-@family trait HOAS extends EvalArith {
+@family trait HOAS extends EvalGArith {
   @adt trait Tm[A] extends super.Tm[A] {
     case class TmVar[A](x: A) extends Tm[A]
     case class TmAbs[A, B](f: Tm[A] => Tm[B]) extends Tm[A => B]
